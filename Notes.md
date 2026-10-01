@@ -191,3 +191,7 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 
 - dim_users trong BigQuery hiện là Type 1 (mỗi khách một dòng, user_id là khóa chính).
 - Type 2 làm trên dữ liệu thật ở Tuần 4 bằng dbt snapshot.
+
+### Day 3
+
+4xx là lỗi ở yêu cầu của mình (sai tham số, sai URL, sai key), phải sửa rồi mới chạy lại. 429 là mình gọi quá nhiều, cần chờ và gọi thưa hơn. 5xx là lỗi phía server, có thể thử lại. Mất mạng hoặc quá thời gian thì không có mã, cũng thử lại được.
