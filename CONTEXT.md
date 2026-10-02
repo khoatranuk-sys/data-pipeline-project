@@ -35,6 +35,7 @@
 - Từ Ngày 4: thêm `Python/Day 4/` (notebook `Day4.ipynb`), `.env` (khóa giả để tập, **không commit**, bị `.gitignore` chặn ở dòng 151) và `.env.example` (file mẫu, có commit). Dataset `bq-learning-510104.raw` (US) chứa dữ liệu thô từ API.
 - Terminal VS Code (PowerShell) dùng Python của `base`, không phải `bi`; `conda activate bi` trong PowerShell không có tác dụng. Kernel notebook mới là môi trường `bi`, nên cài thư viện bằng `%pip install ...` trong notebook. Lệnh Git thì không phụ thuộc môi trường Python.
 - Khi gõ lệnh, tên nhánh, tên file: tắt bộ gõ tiếng Việt.
+- Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
 
 ## 5. Chi phí và an toàn
 - Bật billing vào đầu **Tuần 3** (dbt cần DML; sandbox có bảng tự hết hạn sau 60 ngày).
@@ -94,11 +95,22 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Thí nghiệm chạy lại**: `WRITE_APPEND` làm bảng thành 42 dòng (trùng, không báo lỗi); `WRITE_TRUNCATE` đưa về 21 dòng. Ba chế độ: `WRITE_TRUNCATE` (xóa cũ ghi mới), `WRITE_APPEND` (nối thêm), `WRITE_EMPTY` (chỉ ghi nếu bảng trống). Pipeline chạy lại nhiều lần cho cùng kết quả gọi là idempotent.
   - **Git**: làm đủ một vòng: nhánh (`git switch -c`), `git add` từng file, `git commit -m`, `git push -u origin`, Pull Request trên GitHub, merge, `git pull` về máy, `git branch -d` xóa nhánh. Đã làm hai PR (#1 notebook, #2 `.env.example`).
   - **Bảo vệ bí mật**: `.gitignore` (mẫu Python của GitHub) đã chặn `.env` ở dòng 151 (kiểm tra bằng `git check-ignore -v .env`). Khóa để trong `.env`, đọc bằng `python-dotenv` (`load_dotenv`, `os.getenv`); `.env.example` chứa tên biến, không chứa khóa thật. Không `print` khóa vì output notebook cũng bị commit. Đã kiểm tra trên GitHub: có `.env.example`, không có `.env`. Các file `Ghi_chu.txt`, `test_bq.ipynb`, `viewtable.ipynb` chỉ là nội dung thử; `.vscode/settings.json` chỉ có 2 dòng cấu hình conda, an toàn.
-  - **Checklist Excel**: Tuần 1 xong 13/16 việc (còn Ngày 5 và Ngày 6); tính chung Tuần 1-8 là 13/61.
+  - **Checklist Excel**: xong 3 việc Ngày 4.
+- **Ngày 5**: mini project. Notebook `Python/Day 5/Day5.ipynb` (thử từng mảnh) và script `Python/Day 5/weather_pipeline.py` (chạy một lệnh).
+  - **Logging**: `logging.basicConfig(level, format, force=True)`, các mức DEBUG/INFO/WARNING/ERROR; script ghi cả ra màn hình và file `logs/weather_pipeline.log` (`FileHandler`, ghi nối thêm).
+  - **Extract**: `get_json` (timeout, retry backoff `2 ** attempt` với 5xx/429/mất mạng, dừng ngay với 4xx khác 429) và `extract_weather` lặp qua dictionary `CITIES` (3 thành phố, 7 ngày), nghỉ 1 giây giữa các lần gọi.
+  - **Transform**: `transform_weather` gom thành DataFrame 21 dòng, 6 cột (`pd.concat` giống UNION ALL, thêm cột `city`, `time` về DATE, `ingested_at` UTC). `ingested_at` là thời điểm lấy dữ liệu, không phải lúc nạp.
+  - **Kiểm tra chất lượng trước khi nạp**: `validate_weather` kiểm tra số dòng (3 × 7), giá trị thiếu, trùng `(city, time)` (kiểm tra grain), max nhỏ hơn min, mưa âm. Thử làm hỏng dữ liệu thì báo cả 3 lỗi một lượt và dừng, không nạp.
+  - **Load**: `load_weather` dùng schema khai báo rõ + `WRITE_TRUNCATE`, đối chiếu `job.output_rows` với số dòng gửi lên. Bảng `raw.weather_daily` giờ chứa 2026-10-02 đến 2026-10-08.
+  - **Điều phối**: `main()` chạy 4 bước theo thứ tự, `try/except` + `log.exception` ghi dấu vết lỗi, trả mã thoát 0 (thành công) hoặc 1 (thất bại) qua `sys.exit(main())`.
+  - **Lần chạy thật đầu tiên**: gặp `ReadTimeout` ở Da Nang, retry thành công ở lần 2; log ghi lại đủ. Tổng 26,2 giây.
+  - **README**: viết lại `README.md` (mục tiêu, sơ đồ luồng Mermaid, bảng cột `raw.weather_daily`, ảnh star schema, cách chạy, cấu trúc thư mục, lưu ý an toàn).
+  - **Checklist Excel**: Tuần 1 xong 15/16 việc (còn Ngày 6 ôn tập); tính chung Tuần 1-8 là 15/61.
 
 ## 8. Đang làm
-- **Ngày 5**: mini project (API → làm sạch → BigQuery, có logging, README). Dùng lại `get_json` (Ngày 3), `check`/`run` và cách nạp bảng (Ngày 4); nên gom các hàm dùng chung vào một file `.py`. Có thể xử lý luôn cảnh báo `pandas-gbq` (xem mục 9).
-- Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Với repo cá nhân có thể làm gọn: sửa trên `main`, rồi `add`, `commit`, `push`.
+- **Ngày 6**: ôn tập, tự trả lời 3 câu: grain là gì? SCD 2 khác SCD 1 ở đâu? Vì sao tránh `SELECT *`? Làm theo cách hỏi đáp từng câu rồi ghi vào `Notes.md`.
+- **Tuần 2** (BigQuery): load job (`load_table_from_uri`), partition, clustering, `INFORMATION_SCHEMA.JOBS`, IAM/view, Looker Studio.
+- Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Cảnh báo `pandas-gbq` chưa xử lý (không bắt buộc).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -126,6 +138,9 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`.gitignore` chặn theo tên chính xác**: `test.env` vẫn lọt, chỉ `.env` bị chặn.
 - **Terminal VS Code dùng Python của `base`, không phải `bi`** (`sys.executable` không có `envs\bi`): cài gói bằng `%pip install ...` trong notebook để vào đúng môi trường của kernel.
 - **Gõ sai `sys.excutable`**: tên đúng là `sys.executable`.
+- **`ModuleNotFoundError: No module named 'google.cloud'` khi chạy script**: lệnh `python` trong terminal VS Code dùng môi trường `base`. Chạy bằng đường dẫn đầy đủ tới Python của `bi` (`...\envs\bi\python.exe`) hoặc dùng Anaconda Prompt sau `conda activate bi`.
+- **`ReadTimeout` khi gọi API**: lỗi mạng tạm thời, không phải lỗi code; `get_json` tự chờ và gọi lại (xem log `Lần 1/4`).
+- **Log trong notebook không hiện hoặc không đổi mức**: thêm `force=True` vào `logging.basicConfig` vì notebook thường đã có sẵn cấu hình log.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -143,6 +158,10 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Mọi bí mật (API key) để trong `.env`, chỉ commit `.env.example`; không `print` khóa; trước khi commit notebook tìm thử một đoạn khóa bằng Ctrl+Shift+F. Nếu khóa thật bị lộ lên GitHub thì thu hồi và tạo khóa mới ngay.
 - Commit bằng `git add` từng file (không dùng `git add .`) rồi `git status` kiểm tra trước khi commit.
 - Cài thư viện cho kernel `bi` bằng `%pip install` trong notebook.
+- Ngày 5: pipeline luôn theo thứ tự lấy, làm sạch, kiểm tra, nạp; kiểm tra thất bại thì dừng, không nạp bừa. Ghi log ra màn hình và file `logs/` (không commit); script trả mã thoát 0 hoặc 1 để công cụ lập lịch biết kết quả.
+- Pipeline chạy tự động thì dựa vào cầu chì và cổng kiểm tra tự động (`maximum_bytes_billed`, `validate_weather`), không dựa vào mắt người.
+- Gom các hàm đã thử trong notebook vào một file `.py` có hàm `main()` khi muốn chạy bằng một lệnh.
+- Repo cá nhân: commit thẳng lên `main`, chọn từng file bằng `git add <file>`, dùng nhánh và Pull Request khi muốn thử nghiệm hoặc làm nhóm.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
