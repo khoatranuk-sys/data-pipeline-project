@@ -195,3 +195,30 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 ### Day 3
 
 4xx là lỗi ở yêu cầu của mình (sai tham số, sai URL, sai key), phải sửa rồi mới chạy lại. 429 là mình gọi quá nhiều, cần chờ và gọi thưa hơn. 5xx là lỗi phía server, có thể thử lại. Mất mạng hoặc quá thời gian thì không có mã, cũng thử lại được.
+
+## Ngày 4: Python cho pipeline (2) + Git
+
+**1. Dry run và maximum_bytes_billed**
+- Dry run (`check`): chỉ ước lượng xem query sẽ quét bao nhiêu MB, không chạy thật nên không tốn tiền.
+- `run`: chạy thật và trả kết quả về DataFrame.
+- `maximum_bytes_billed`: mức trần lượng dữ liệu bị tính tiền. Vượt mức này thì BigQuery từ chối chạy, không tính tiền (mức tối thiểu là 10 MB nên đặt 1 MB sẽ bị chặn).
+- Dùng cả hai: dry run để xem trước, `maximum_bytes_billed` làm cầu chì.
+
+**2. WRITE_APPEND và WRITE_TRUNCATE**
+- `WRITE_APPEND`: nối dữ liệu vào bảng trên BigQuery. Chạy lại thì bị trùng, và không có lỗi nào được báo (bảng từ 21 dòng thành 42 dòng, COUNT và SUM ra gấp đôi).
+- `WRITE_TRUNCATE`: xóa dữ liệu cũ của bảng rồi ghi dữ liệu mới, nên chạy lại bao nhiêu lần cũng ra cùng kết quả (idempotent). Đánh đổi: nếu dữ liệu mới chỉ có phần gần đây thì lịch sử cũ bị mất, nên với bảng tích lũy phải dùng cách khác.
+
+**3. Commit và push**
+- `git add`: chọn file đưa vào điểm lưu.
+- `git commit`: lưu một điểm trong lịch sử, nằm trên máy mình.
+- `git push`: đẩy các điểm lưu lên GitHub. `git pull` là chiều ngược lại, kéo từ GitHub về.
+
+**4. .gitignore**
+- `.gitignore` bảo Git lờ các file khớp tên hoặc mẫu trong đó: không hiện trong `git status`, không bị `git add` đưa vào commit, nên không lên GitHub. File vẫn nằm trên máy và dùng bình thường.
+- `.env` bị chặn (dòng 151), còn `test.env` thì không vì tên khác, không khớp mẫu nào.
+- `.gitignore` chỉ ngăn file chưa từng được commit; file đã lên GitHub rồi thì thêm vào `.gitignore` không gỡ được khỏi lịch sử.
+
+**5. Lỡ push API key thật lên repo công khai**
+- Việc đầu tiên: thu hồi (revoke) khóa cũ và tạo khóa mới.
+- Chỉ xóa file là chưa đủ: Git còn lưu khóa trong lịch sử và có bot quét GitHub, nên khóa phải coi là đã lộ.
+- Sau đó cập nhật khóa mới vào `.env` rồi mới dọn code trong repo.
