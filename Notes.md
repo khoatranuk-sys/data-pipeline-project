@@ -263,3 +263,21 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - BigQuery lưu theo cột và tính tiền theo số byte của các cột mà query đọc, không phải số dòng trả về.
 - SELECT * đọc tất cả cột nên đắt, và LIMIT không giảm chi phí.
 - Cách làm đúng: chỉ chọn cột cần dùng, dry run để ước lượng, dùng maximum_bytes_billed làm cầu chì; sau này lọc theo cột partition (Tuần 2).
+
+## Tuần 2 - Ngày 1: Load job
+
+**Load job khác query job ở đâu?**
+- Load job đưa dữ liệu từ bên ngoài (file trên máy hoặc trên Cloud Storage) lên bảng BigQuery.
+- Query job đọc dữ liệu đã có trong bảng bằng SQL. `CREATE ... AS SELECT` cũng là query job (kết quả được ghi vào bảng mới).
+
+**Vì sao Parquet ít phải đoán kiểu hơn CSV?**
+- Parquet lưu sẵn schema trong file nên khi nạp, kiểu dữ liệu giữ y nguyên.
+- CSV chỉ là chữ, nên BigQuery phải đoán (auto-detect chỉ lấy mẫu vài trăm dòng đầu) hoặc mình khai báo schema rõ.
+- Parquet giữ kiểu đúng như file, chưa chắc là kiểu mình muốn: cột `time` ra TIMESTAMP vì lúc lưu là `datetime64`, trong khi bảng CSV ra DATE. Luôn kiểm tra kiểu cột sau khi nạp.
+
+**Vì sao nạp theo lô được ưu tiên hơn nạp từng dòng?**
+- Load job theo lô miễn phí; streaming bị tính phí riêng.
+- Sandbox không hỗ trợ streaming nên chỉ nạp theo lô được.
+- (Tính tiền theo cột là quy tắc của query job, không phải của load job.)
+
+**Đã làm:** nạp bằng giao diện web (CSV, Parquet), bằng Python (`load_table_from_file`), và từ Cloud Storage công khai (`load_table_from_uri`, bảng `raw.us_states`, 50 dòng). Sandbox đọc được bucket công khai.
