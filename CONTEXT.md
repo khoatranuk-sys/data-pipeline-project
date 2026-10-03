@@ -105,12 +105,17 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Điều phối**: `main()` chạy 4 bước theo thứ tự, `try/except` + `log.exception` ghi dấu vết lỗi, trả mã thoát 0 (thành công) hoặc 1 (thất bại) qua `sys.exit(main())`.
   - **Lần chạy thật đầu tiên**: gặp `ReadTimeout` ở Da Nang, retry thành công ở lần 2; log ghi lại đủ. Tổng 26,2 giây.
   - **README**: viết lại `README.md` (mục tiêu, sơ đồ luồng Mermaid, bảng cột `raw.weather_daily`, ảnh star schema, cách chạy, cấu trúc thư mục, lưu ý an toàn).
-  - **Checklist Excel**: Tuần 1 xong 15/16 việc (còn Ngày 6 ôn tập); tính chung Tuần 1-8 là 15/61.
+  - **Checklist Excel**: xong 2 việc Ngày 5.
+- **Ngày 6**: ôn tập, trả lời từng câu rồi ghi vào `Notes.md` (cùng với ghi chú Ngày 5).
+  - **Grain**: một dòng của bảng fact đại diện cho cái gì. `fact_order_items` có grain là một order item (một món hàng trong một đơn), nên một sản phẩm xuất hiện ở nhiều dòng. Phải chốt grain trước vì nó quyết định cột nào đưa vào bảng, nối được dimension nào, và tránh cộng trùng. Kiểm tra trùng `(city, time)` ở bảng thời tiết chính là kiểm tra grain.
+  - **SCD 1 và SCD 2** (khách đổi từ Hà Nội sang TP HCM): SCD 1 ghi đè nên mất lịch sử và làm đổi báo cáo quá khứ; SCD 2 thêm dòng mới (surrogate key, `valid_from`, `valid_to`, `is_current`) nên giữ nguyên báo cáo quá khứ, nhưng bảng to hơn và phép nối phức tạp hơn.
+  - **Tránh `SELECT *`**: BigQuery lưu theo cột và tính tiền theo số byte của các cột mà query đọc; `SELECT *` đọc tất cả cột nên đắt, `LIMIT` không giảm chi phí. Chỉ chọn cột cần, dry run để ước lượng, `maximum_bytes_billed` làm cầu chì; sau này lọc theo cột partition.
+  - **Checklist Excel**: **Tuần 1 hoàn tất 16/16**; tính chung Tuần 1-8 là 16/61.
 
 ## 8. Đang làm
-- **Ngày 6**: ôn tập, tự trả lời 3 câu: grain là gì? SCD 2 khác SCD 1 ở đâu? Vì sao tránh `SELECT *`? Làm theo cách hỏi đáp từng câu rồi ghi vào `Notes.md`.
-- **Tuần 2** (BigQuery): load job (`load_table_from_uri`), partition, clustering, `INFORMATION_SCHEMA.JOBS`, IAM/view, Looker Studio.
+- **Tuần 2** (BigQuery nâng cao + Looker Studio), 7 việc theo checklist: nạp CSV/Parquet bằng load job (giao diện và Python, thử `load_table_from_uri`); tạo bảng partition theo ngày và so sánh bytes quét trước/sau; thêm clustering và đo lại chi phí; đọc `INFORMATION_SCHEMA.JOBS` để theo dõi chi phí từng query; học IAM cơ bản, view, materialized view; kết nối Looker Studio với BigQuery; dựng dashboard đầu tiên (KPI, biểu đồ, bộ lọc).
 - Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Cảnh báo `pandas-gbq` chưa xử lý (không bắt buộc).
+- Gợi ý khi vào Tuần 2: partition và clustering sẽ giải thích tận gốc vì sao `LIMIT` không giảm chi phí, nên nối tiếp trực tiếp câu `SELECT *` của Ngày 6.
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -162,6 +167,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Pipeline chạy tự động thì dựa vào cầu chì và cổng kiểm tra tự động (`maximum_bytes_billed`, `validate_weather`), không dựa vào mắt người.
 - Gom các hàm đã thử trong notebook vào một file `.py` có hàm `main()` khi muốn chạy bằng một lệnh.
 - Repo cá nhân: commit thẳng lên `main`, chọn từng file bằng `git add <file>`, dùng nhánh và Pull Request khi muốn thử nghiệm hoặc làm nhóm.
+- Ngày 6: luôn chốt grain của bảng fact trước khi thiết kế; chọn SCD 1 khi không cần giữ lịch sử, SCD 2 khi báo cáo quá khứ phải giữ nguyên (chấp nhận bảng to hơn, nối phức tạp hơn).
+- Không dùng `SELECT *` trên bảng lớn; luôn liệt kê cột cần dùng.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
