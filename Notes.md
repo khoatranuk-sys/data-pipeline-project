@@ -222,3 +222,44 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Việc đầu tiên: thu hồi (revoke) khóa cũ và tạo khóa mới.
 - Chỉ xóa file là chưa đủ: Git còn lưu khóa trong lịch sử và có bot quét GitHub, nên khóa phải coi là đã lộ.
 - Sau đó cập nhật khóa mới vào `.env` rồi mới dọn code trong repo.
+
+## Ngày 5: Mini project (pipeline thời tiết)
+
+**1. Logging thay cho print**
+- Logging ghi từng bước kèm giờ và mức độ, ra màn hình và file `logs/weather_pipeline.log` (ghi nối thêm mỗi lần chạy). Pipeline chạy một mình ban đêm thì sáng hôm sau mở file log là biết đêm qua ổn hay không.
+- `print` chỉ hiện lúc chạy, đóng cửa sổ hoặc chạy lại là mất, không có giờ và mức độ.
+- Bốn mức: DEBUG (chi tiết để dò lỗi), INFO (tiến trình bình thường), WARNING (bất thường nhưng chưa hỏng, ví dụ ReadTimeout rồi retry thành công), ERROR (đã hỏng).
+
+**2. Retry và backoff**
+- Nên retry với lỗi tạm thời: 429 (gọi quá nhanh), 5xx (lỗi server), lỗi mạng (quá giờ, mất kết nối).
+- Không retry với 4xx còn lại vì do request của mình (gọi lại vẫn ra cùng lỗi), phải dừng ngay và báo lỗi rõ ràng.
+- Backoff là chờ lâu dần giữa các lần thử (2, 4, 8 giây) để không dồn thêm tải cho server đang quá tải và cho lỗi tạm thời có thời gian hết.
+
+**3. Kiểm tra chất lượng trước khi nạp**
+- Dữ liệu sai không báo lỗi mà làm số liệu sai khi người khác dùng; sửa sau khi nạp tốn công hơn chặn từ đầu.
+- validate_weather kiểm tra: số dòng (3 thành phố × 7 ngày), giá trị thiếu, trùng (city, time), max nhỏ hơn min, mưa âm. Kiểm tra thất bại thì dừng, không nạp.
+- Kiểm tra trùng (city, time) chính là kiểm tra grain: bảng thời tiết có grain là một thành phố một ngày.
+
+**4. Script .py, hàm main() và mã thoát**
+- Script chạy trọn quy trình bằng một lệnh; notebook chỉ để thử từng mảnh. main() cố định thứ tự lấy, làm sạch, kiểm tra, nạp.
+- try/except trong main(): lỗi thì ghi log kèm dấu vết, các bước sau không chạy.
+- Mã thoát gửi kết quả ra bên ngoài: 0 là thành công, 1 là thất bại, để công cụ lập lịch biết mà cảnh báo hoặc không chạy bước kế tiếp. Không có mã thoát thì pipeline hỏng mà bên ngoài vẫn thấy "đã chạy xong".
+- Lần chạy thật đầu tiên gặp ReadTimeout ở Da Nang, retry thành công lần 2, log ghi lại đủ.
+
+
+## Ngày 6: Ôn tập (grain, SCD, SELECT *)
+
+**1. Grain**
+- Grain là một dòng của bảng fact đại diện cho cái gì. `fact_order_items` có grain là một order item (một món hàng trong một đơn), nên một sản phẩm có thể xuất hiện ở rất nhiều dòng.
+- Phải chốt grain trước vì nó quyết định bảng fact chứa được cột nào và nối được với dimension nào. Lẫn nhiều grain trong một bảng thì SUM và COUNT bị cộng trùng mà không báo lỗi.
+- Các kiểm tra (đếm dòng, kiểm tra trùng) đều dựa vào grain. Ví dụ bảng thời tiết có grain là một thành phố một ngày, nên kiểm tra trùng (city, time).
+
+**2. SCD 1 và SCD 2** (ví dụ khách đổi từ Hà Nội sang TP HCM)
+- SCD 1: ghi đè, bảng chỉ còn TP HCM. Mất lịch sử, và doanh thu các đơn cũ cũng bị tính sang TP HCM, làm đổi báo cáo quá khứ.
+- SCD 2: thêm dòng mới, khách có 2 dòng (HN và HCM). Có surrogate key mới, valid_from, valid_to, is_current. Dòng cũ được đóng lại (valid_to, is_current = false). Đơn cũ vẫn gắn với HN, đơn mới gắn với HCM, báo cáo quá khứ giữ nguyên.
+- Cái giá của SCD 2: bảng dimension to hơn và phép nối phức tạp hơn (phải chọn đúng phiên bản).
+
+**3. Vì sao tránh SELECT ***
+- BigQuery lưu theo cột và tính tiền theo số byte của các cột mà query đọc, không phải số dòng trả về.
+- SELECT * đọc tất cả cột nên đắt, và LIMIT không giảm chi phí.
+- Cách làm đúng: chỉ chọn cột cần dùng, dry run để ước lượng, dùng maximum_bytes_billed làm cầu chì; sau này lọc theo cột partition (Tuần 2).
