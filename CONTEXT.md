@@ -112,10 +112,23 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Tránh `SELECT *`**: BigQuery lưu theo cột và tính tiền theo số byte của các cột mà query đọc; `SELECT *` đọc tất cả cột nên đắt, `LIMIT` không giảm chi phí. Chỉ chọn cột cần, dry run để ước lượng, `maximum_bytes_billed` làm cầu chì; sau này lọc theo cột partition.
   - **Checklist Excel**: **Tuần 1 hoàn tất 16/16**; tính chung Tuần 1-8 là 16/61.
 
+- **Tuần 2, Ngày 3**: clustering và `INFORMATION_SCHEMA.JOBS`.
+  - **Clustering**: `CREATE ... CLUSTER BY product_id`. Bảng `lab.fact_items_clu` (bản sao có clustering của `fact_items_plain`, khoảng 14 MB, 180.771 dòng). Trên bảng nhỏ không thấy khác biệt vì cả hai bị tính tối thiểu 10 MB.
+  - **Thí nghiệm bảng lớn** (`big_plain` và `big_clu`, mỗi bảng khoảng 2,5 GB, tạo bằng cách nhân dòng, đã xóa sau khi đo): lọc `product_id` đọc 499,26 MB (billed 500 MB) trên bảng thường và 6,97 MB (billed 10 MB) trên bảng clustered, ít hơn khoảng 72 lần. Dry run bảng clustered là cận trên (lần đo này trùng với số thật).
+  - BigQuery chỉ đọc các cột được nhắc đến: 499 MB là hai cột `product_id` và `sale_price`, không phải cả bảng.
+  - **`INFORMATION_SCHEMA.JOBS`** (`region-us`): view hệ thống, thời gian theo UTC (giờ Việt Nam = UTC + 7); đọc `total_bytes_processed`, `total_bytes_billed`, `referenced_tables`; không chọn `user_email` vì repo công khai.
+  - Dataset `lab` còn 4 bảng: `fact_items_plain`, `fact_items_part`, `fact_items_clu`, `fact_items_recent`.
+  - **Ôn Python cuối ngày**: xong 6/6 dòng (`client`, vòng `for`, `dry_run`, `job.result()`, `to_dataframe`, `delete_table`).
+  - **Checklist Excel**: xong 2 việc; Tuần 2 là 4/7, tổng 20/61.
+
+
 ## 8. Đang làm
 - **Tuần 2** (BigQuery nâng cao + Looker Studio), 7 việc theo checklist: nạp CSV/Parquet bằng load job (giao diện và Python, thử `load_table_from_uri`); tạo bảng partition theo ngày và so sánh bytes quét trước/sau; thêm clustering và đo lại chi phí; đọc `INFORMATION_SCHEMA.JOBS` để theo dõi chi phí từng query; học IAM cơ bản, view, materialized view; kết nối Looker Studio với BigQuery; dựng dashboard đầu tiên (KPI, biểu đồ, bộ lọc).
 - Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Cảnh báo `pandas-gbq` chưa xử lý (không bắt buộc).
 - Gợi ý khi vào Tuần 2: partition và clustering sẽ giải thích tận gốc vì sao `LIMIT` không giảm chi phí, nên nối tiếp trực tiếp câu `SELECT *` của Ngày 6.
+
+- **Tuần 2**: xong 4/7 việc (load job, partition, clustering, `INFORMATION_SCHEMA.JOBS`). Còn: IAM cơ bản, view, materialized view; kết nối Looker Studio; dựng dashboard đầu tiên. Tiếp theo: Ngày 4 của Tuần 2.
+- Sandbox gắn hạn 60 ngày cho bảng và partition (bảng `dwh` hết hạn khoảng 29/11/2026). Tuần 3 khi bật billing: kiểm tra và gỡ hạn, tạo lại bảng partition với đủ dữ liệu (`lab.fact_items_part` hiện chỉ còn 22.817 dòng và đang bật `require_partition_filter`).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -146,6 +159,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`ModuleNotFoundError: No module named 'google.cloud'` khi chạy script**: lệnh `python` trong terminal VS Code dùng môi trường `base`. Chạy bằng đường dẫn đầy đủ tới Python của `bi` (`...\envs\bi\python.exe`) hoặc dùng Anaconda Prompt sau `conda activate bi`.
 - **`ReadTimeout` khi gọi API**: lỗi mạng tạm thời, không phải lỗi code; `get_json` tự chờ và gọi lại (xem log `Lần 1/4`).
 - **Log trong notebook không hiện hoặc không đổi mức**: thêm `force=True` vào `logging.basicConfig` vì notebook thường đã có sẵn cấu hình log.
+- **`INFORMATION_SCHEMA.JOBS` trả về bảng rỗng**: bộ lọc thời gian quá hẹp (3 giờ) trong khi các query chạy cách đó hơn 5 giờ; cột thời gian là UTC. Sửa: nới lên 24 giờ. Khi gặp bảng rỗng, nới lần lượt từng điều kiện lọc để biết điều kiện nào loại mất dữ liệu.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -186,3 +200,6 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Nói rõ điều gì chưa chắc chắn thay vì đoán.
 - Với phần code mới: giải thích mỗi bước để làm gì và dịch sang SQL khi có thể; nói rõ phần nào cần hiểu, phần nào không cần thuộc. Chia nhỏ từng cell, mỗi cell kèm kết quả mong đợi.
 - Khi giải thích code: gửi nguyên script đúng như sẽ chạy, giải thích bằng comment (`#`) ngay trong code, không cắt script thành từng đoạn rời. Sau script ghi kết quả mong đợi, phần cần hiểu và phần không cần thuộc.
+- Khi đưa cell notebook: ghi số cell trong code (`# Cell 3`).
+- Đầu mỗi ngày mới: nói rõ mục đích của ngày đó.
+- Cuối mỗi ngày: ôn code Python bằng 5-6 dòng quan trọng nhất của ngày. Hỏi từng câu một (mình trả lời bằng lời, rồi mới nhận xét, rồi mới sang câu sau), ghi mục đích của từng câu; trộn lại vài dòng cũ (nhất là dòng trả lời sai) vào ngày sau; không thêm phần dịch SQL sang pandas.

@@ -306,3 +306,47 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 **Lưu ý sandbox**
 - Mọi bảng đều có hạn 60 ngày; bảng `dwh` hết hạn khoảng 29/11/2026.
 - Tuần 3 khi bật billing: kiểm tra và gỡ hạn, tạo lại bảng partition với đủ dữ liệu (cách làm sẽ xác nhận sau).
+
+## Tuần 2 - Ngày 3: Clustering và INFORMATION_SCHEMA.JOBS
+
+**Clustering là gì, khác partition ở đâu?**
+- Clustering sắp xếp dữ liệu bên trong bảng theo cột mình chọn (`CLUSTER BY product_id`, tối đa 4 cột, thứ tự cột có ý nghĩa) và chia thành các khối. Khi lọc theo cột đã cluster, BigQuery bỏ qua các khối không chứa giá trị cần tìm nên đọc ít byte hơn. Ví dụ: danh bạ xếp theo tên, tìm "Trần" thì mở thẳng phần chữ T.
+- Partition chia bảng thành các ngăn riêng (thường theo ngày/tháng, cột ít giá trị khác nhau), dry run cho số chính xác. Clustering sắp xếp bên trong bảng (hoặc bên trong mỗi partition), hợp với cột nhiều giá trị (`product_id`, `user_id`), dry run chỉ là cận trên. Hai cách dùng được cùng nhau.
+
+**Đo chi phí: bảng nhỏ và bảng lớn** (lọc `product_id` rồi `SUM(sale_price)`)
+- Bảng nhỏ (`fact_items_plain` ~14 MB và `fact_items_clu`): hai bảng gần bằng nhau, billed đều 10 MB vì mức tối thiểu 10 MB và bảng quá nhỏ để chia khối.
+- Bảng lớn (`big_plain` và `big_clu`, ~2,5 GB mỗi bảng, tạo bằng cách nhân dòng, đã xóa sau khi đo): bảng thường processed 499,26 MB (billed 500 MB), bảng clustered 6,97 MB (billed 10 MB), ít hơn khoảng 72 lần.
+- Dry run của `big_clu` ra 6,97 MB, trùng số thật lần này. Nhưng với bảng clustered dry run chỉ là cận trên, không phải lúc nào cũng trùng.
+- Chỉ lợi khi lọc theo cột đã cluster.
+
+**Vì sao `big_plain` chỉ quét 499 MB dù bảng ~2,5 GB?**
+- BigQuery tính theo cột được nhắc đến: query chỉ đọc `product_id` và `sale_price`, không đọc các cột còn lại. Chọn đúng cột và clustering là hai cách giảm chi phí khác nhau, cộng dồn được.
+- Có thể kiểm chứng bằng Cell 5b (dry run theo 3 nhóm cột).
+
+**`INFORMATION_SCHEMA.JOBS` là gì, dùng thế nào?**
+- Là view hệ thống có sẵn của BigQuery, tự cập nhật khi có job chạy; chỉ đọc, không sửa, không xóa. Chứa thông tin về job, không chứa dữ liệu bán hàng.
+- Gọi kèm vùng: `bq-learning-510104.region-us.INFORMATION_SCHEMA.JOBS`.
+- Cột hay dùng: `creation_time`, `total_bytes_processed`, `total_bytes_billed`, `referenced_tables`. Giờ là UTC (giờ Việt Nam = UTC + 7).
+- Cell 6 ban đầu ra bảng rỗng vì cửa sổ 3 giờ quá hẹp (các query chạy cách đó hơn 5 giờ), nới lên 24 giờ thì ra. Bảng rỗng là do bộ lọc, nên nới từng điều kiện để biết điều kiện nào loại mất dữ liệu.
+- Không chọn `user_email` vì repo công khai.
+- Ước tính tiền: `total_bytes_billed / 1024^4 * 6.25` (6,25 USD/TiB; sandbox không tính tiền thật). Query `big_plain` (500 MB) ước tính khoảng 0,003 USD.
+
+**`f"""` và `rf"""` khác nhau thế nào?**
+- `f` cho chèn biến bằng `{...}`; `r` giữ nguyên dấu `\`; `rf` là cả hai.
+- Dùng `rf` khi SQL có `\` (ví dụ `r'\s+'` trong `REGEXP_REPLACE`). Chữ `r` bên trong SQL là của BigQuery, khác chữ `r` của Python.
+
+**Ôn code Python cuối ngày (6 dòng)**
+- `client = bigquery.Client(project=PROJECT, location="US")`: tạo kết nối Python với BigQuery. `client` dùng lại ở các cell sau để chạy query, xem bảng (`get_table`), liệt kê bảng, xóa bảng. `project` là project chạy query, `location` là vùng dữ liệu.
+- `for name in ("fact_items_plain", "fact_items_clu"):` lặp qua từng phần tử, mỗi vòng tự **gán** phần tử vào `name`; khối thụt vào chạy 2 lần (không phải "khai báo").
+- `cfg = bigquery.QueryJobConfig(dry_run=True)`: chỉ **tạo cấu hình**. Ước lượng xảy ra khi đưa `cfg` vào `client.query(sql, job_config=cfg)`. Dry run không chạy thật, không tốn quota, trả về số byte dự kiến.
+- `job.result()`: chờ job chạy xong. Đọc `total_bytes_processed` quá sớm thì thường ra `None` (hàm `mb` biến thành 0,0 MB, dễ hiểu nhầm là miễn phí).
+- `df = client.query(sql).to_dataframe()`: gửi SQL đi chạy rồi đưa kết quả thành DataFrame pandas nằm trong bộ nhớ máy, gán vào `df`. Tắt kernel là mất. `.to_dataframe()` tự chờ job xong.
+- `client.delete_table(f"{PROJECT}.lab.{name}", not_found_ok=True)`: xóa bảng `lab.<name>`; `not_found_ok=True` thì bảng không tồn tại sẽ bỏ qua, không báo lỗi, nên chạy lại vẫn an toàn. Lệnh không hỏi xác nhận, coi là khó hoàn tác.
+- Cần ôn lại ở Ngày 4: (1) `for` lặp qua và tự gán; (2) `QueryJobConfig(dry_run=True)` chỉ tạo cấu hình; (3) đọc số byte khi job chưa xong thường ra `None`; (4) dùng từ "gán".
+
+**Đã làm:** tạo `fact_items_clu` (bản sao có clustering), thí nghiệm bảng lớn rồi xóa `big_plain` và `big_clu` (dataset `lab` còn 4 bảng: `fact_items_plain`, `fact_items_part`, `fact_items_clu`, `fact_items_recent`), đọc `INFORMATION_SCHEMA.JOBS`.
+
+**Điều mình chưa chắc**
+- Ngưỡng kích thước mà clustering bắt đầu có lợi (tài liệu nói chung khoảng 1 GB, không phải số cứng).
+- Bảng vừa xóa có khôi phục được trong vài ngày không (chưa kiểm lại).
+- `JOBS` có đúng là tên gọi tắt của `JOBS_BY_PROJECT` không (chưa kiểm lại).
