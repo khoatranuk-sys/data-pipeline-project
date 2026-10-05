@@ -185,3 +185,4 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Khi mình đã hoàn thành một ngày, chỉ cần nội dung ngày kế tiếp, không lặp lại phần cũ.
 - Nói rõ điều gì chưa chắc chắn thay vì đoán.
 - Với phần code mới: giải thích mỗi bước để làm gì và dịch sang SQL khi có thể; nói rõ phần nào cần hiểu, phần nào không cần thuộc. Chia nhỏ từng cell, mỗi cell kèm kết quả mong đợi.
+- Khi giải thích code: gửi nguyên script đúng như sẽ chạy, giải thích bằng comment (`#`) ngay trong code, không cắt script thành từng đoạn rời. Sau script ghi kết quả mong đợi, phần cần hiểu và phần không cần thuộc.

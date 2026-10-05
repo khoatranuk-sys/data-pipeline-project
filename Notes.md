@@ -281,3 +281,28 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - (Tính tiền theo cột là quy tắc của query job, không phải của load job.)
 
 **Đã làm:** nạp bằng giao diện web (CSV, Parquet), bằng Python (`load_table_from_file`), và từ Cloud Storage công khai (`load_table_from_uri`, bảng `raw.us_states`, 50 dòng). Sandbox đọc được bucket công khai.
+
+## Tuần 2 - Ngày 2: Partitioning
+
+**Partition giảm byte khi nào, và không giảm khi nào?** (số đo ở Cell 11, bảng nhỏ nên chỉ nhìn quy luật)
+- Lọc theo cột partition (`order_date`): bảng partition quét ít hơn (356,5 KB còn 209,3 KB).
+- Không lọc gì, lọc theo cột khác (`sale_price`), hoặc `SELECT * ... LIMIT 10`: không giảm (178,3 KB và 1832,7 KB, hai bảng bằng nhau).
+- Muốn giảm byte mà bảng không partition: chọn ít cột (BigQuery tính theo số cột được đọc, không theo số dòng). Hai cách này cộng dồn được.
+- Chỉ xem dữ liệu thì dùng Preview hoặc `list_rows` (không tạo query job nên không tính byte quét), không dùng `SELECT *`.
+
+**Vì sao phải tạo thêm `fact_items_recent`?**
+- Sau khi tạo, in `num_rows` của hai bảng (Cell 5): `fact_items_plain` 180.771 dòng, `fact_items_part` chỉ 22.817 dòng.
+- Nhiều khả năng do sandbox gắn hạn 60 ngày cho partition (`expiration_ms` = 60 ngày), nên các tháng cũ bị xóa (suy luận, chưa kiểm chứng trực tiếp).
+- So thẳng hai bảng thì bảng partition trông rẻ hơn chỉ vì ít dữ liệu hơn, không phải nhờ partition.
+- `fact_items_recent` là bản sao không partition của toàn bộ 22.817 dòng đang có trong `fact_items_part`, nên hai bảng chỉ khác partition. Tháng 9 chỉ là tháng được chọn để thử (tháng nhiều dòng nhất).
+- Bài học: sau khi tạo bảng luôn đối chiếu số dòng với bảng gốc.
+
+**`require_partition_filter`**
+- Khi bật, query phải có điều kiện lọc trên cột partition, nếu không bị từ chối (Cell 13); có điều kiện thì chạy được (Cell 14).
+- Nó chỉ là cầu chì chặn quét nhầm toàn bảng, không làm query nhanh hơn hay rẻ hơn. Điều kiện `WHERE` trên cột partition mới giảm byte (đã đo), và thường nhanh hơn (chưa đo thời gian).
+- `LIMIT` không thay được điều kiện lọc (Cell 15: thiếu lọc thì bị chặn).
+- Tắt lại bằng `ALTER TABLE ... SET OPTIONS (require_partition_filter = FALSE)`.
+
+**Lưu ý sandbox**
+- Mọi bảng đều có hạn 60 ngày; bảng `dwh` hết hạn khoảng 29/11/2026.
+- Tuần 3 khi bật billing: kiểm tra và gỡ hạn, tạo lại bảng partition với đủ dữ liệu (cách làm sẽ xác nhận sau).
