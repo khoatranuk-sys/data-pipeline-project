@@ -16,7 +16,7 @@
 
 ## 3. Công nghệ đã chọn
 - **Cloud warehouse**: BigQuery (đã chọn, không học Snowflake ở giai đoạn này).
-- **Biến đổi dữ liệu**: dbt (bắt đầu Tuần 3).
+- **Biến đổi dữ liệu**: dbt Core (cài ở Tuần 3 Ngày 2: `dbt-core` 1.12.5, `dbt-bigquery` 1.12.1).
 - **Kèm Data Studio (tên mới của Looker Studio từ tháng 4/2026; đổi giao diện sang tiếng Anh bằng `https://datastudio.google.com/?hl=en`) để có dashboard sớm.
 - **Ưu tiên thấp (để sau)**: Airflow, Docker, Spark, Terraform. Với BI, scheduled query và lịch làm mới của công cụ BI thường là đủ.
 
@@ -35,6 +35,7 @@
 - Notebook gọi API (Ngày 3) lưu file ra `Path("../../data")` (notebook nằm ở `Python/Day 3/`, lùi hai cấp ra gốc repo).
 - Từ Ngày 4: thêm `Python/Day 4/` (notebook `Day4.ipynb`), `.env` (khóa giả để tập, **không commit**, bị `.gitignore` chặn ở dòng 151) và `.env.example` (file mẫu, có commit). Dataset `bq-learning-510104.raw` (US) chứa dữ liệu thô từ API.
 - Terminal VS Code (PowerShell) dùng Python của `base`, không phải `bi`; `conda activate bi` trong PowerShell không có tác dụng. Kernel notebook mới là môi trường `bi`, nên cài thư viện bằng `%pip install ...` trong notebook. Lệnh Git thì không phụ thuộc môi trường Python.
+- dbt (từ Tuần 3 Ngày 2): cài trong môi trường `bi` bằng `pip install dbt-bigquery`, chạy trong **Anaconda Prompt** sau `conda activate bi` (không dùng terminal VS Code vì nó dùng Python của `base`). Project dbt là thư mục `bi_dbt/` trong repo (có commit, có `.gitignore` riêng). File kết nối `profiles.yml` nằm **ngoài repo** ở `%USERPROFILE%\.dbt\` và **không commit**. Cấu hình: `method: oauth` (dùng đăng nhập gcloud, không cần file khóa), `project: bq-learning-510104`, `dataset: dbt_dev`, `location: US`, `threads: 4`, `maximum_bytes_billed: 1000000000`. Kiểm tra kết nối: `cd bi_dbt` rồi `dbt debug`, mong đợi `All checks passed!`. Lệnh `python -c "..."` phải nằm trên một dòng.
 - Khi gõ lệnh, tên nhánh, tên file: tắt bộ gõ tiếng Việt.
 - Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
 
@@ -43,7 +44,7 @@
 - Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
 - Billing đã bật (Free Trial). Budget bq-learning-budget: 100.000 VND/tháng, ngưỡng 10/50/90/100% (Actual), áp dụng All projects, đã bỏ tick Savings để không trừ tín dụng. Không bật spend cap. Budget chỉ gửi thông báo, không chặn chi tiêu.
 - Quota: không sửa được trên Free Trial (nút Edit quota bị mờ). Việc phải làm ngay sau khi nâng cấp trả phí: đặt Query usage per day và Query usage per day per user = 51200 MiB (50 GiB). Xem đơn vị hiển thị trước khi lưu.
-- Cầu chì hiện có: maximum_bytes_billed trong code Python. Quota cấp project chưa có cho tới khi nâng cấp.
+- Cầu chì hiện có: `maximum_bytes_billed` trong code Python và trong `profiles.yml` của dbt (1000000000 byte, khoảng 1 GB cho mỗi query dbt gửi đi; vượt thì query bị từ chối, không tính tiền). Quota cấp project chưa có cho tới khi nâng cấp.
 - Quyết định nâng cấp trả phí phải xong trước 06/01/2027 (có lời nhắc điện thoại ngày 15/12/2026).
 - Repo công khai: không đưa Billing account ID, email, số thẻ vào repo hoặc ghi chú.
 - Data Studio gửi khoảng 4 query mỗi lần đổi bộ lọc (mỗi thẻ và biểu đồ một query), mỗi query billed tối thiểu 10 MB; query giống hệt lần trước có thể lấy từ cache (processed 0). Chưa chia sẻ dashboard ra ngoài: phần chia sẻ gắn với IAM, làm sau.
@@ -152,16 +153,22 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
  - Kiểm tra sau gỡ: không đối tượng nào còn hạn (tổng 0), mọi default_..._ms là None; fact_items_part có expires và expiration_ms đều None.
  - Ôn Python cuối ngày: xong 6/6 (vòng for lồng nhau, update_dataset, get_table, if t.expires is not None, try/except, for _, row in df.iterrows()). Bài che code: viết lại bản kiểm tra chỉ đọc (Cell 7), sai list_tables thay vì get_table, Print viết hoa và hai lỗi chính tả, đã sửa.
 
+- **Tuần 3, Ngày 2**: cài dbt, khởi tạo project, kết nối BigQuery.
+  - **Cài đặt**: `pip install dbt-bigquery` trong môi trường `bi` (Anaconda Prompt) cài được `dbt-core` 1.12.5 và `dbt-bigquery` 1.12.1 (cả hai báo up to date). `protobuf` bị hạ từ 7.36.2 xuống 6.33.6 vì dbt cần bản cũ hơn; có cảnh báo vàng về thư mục tạm `google\~upb` (an toàn, có thể xóa tay). Đã kiểm tra: `pip check` báo `No broken requirements found`, import `google.cloud.bigquery` chạy được (3.45.2).
+  - **Khởi tạo**: `dbt init bi_dbt` ở thư mục repo tạo `bi_dbt/` (`dbt_project.yml`, `models/example/`, `seeds/`, `snapshots/`, `macros/`, `analyses/`, `tests/`, `.gitignore`, `README.md`). Chọn adapter `bigquery`, xác thực `oauth`, project `bq-learning-510104`, dataset `dbt_dev`, threads 4.
+  - **Hai chỗ phải sửa trong `profiles.yml`**: câu hỏi location là danh sách đánh số (`[1] US`, `[2] EU`), gõ `2` nên ra `EU`, đã sửa thành `US`; và `maximum_bytes_billed` mặc định là `None` nên tự thêm `1000000000`. Sau khi sửa, `dbt debug` hiện `location: US`, `maximum_bytes_billed: 1000000000` và `All checks passed!`.
+  - **Kiểm tra trước khi commit**: `git status -uall` chỉ liệt kê file cấu hình và thư mục mẫu trong `bi_dbt/`, không có `logs/` hay `target/`, không có `profiles.yml` (nó nằm ngoài repo). Dataset `dbt_dev` chưa xuất hiện trong BigQuery: `dbt debug` không tạo dataset.
+  - **Ôn Python cuối ngày**: xong 6/6 (`list_tables` khác `get_table`; hai dòng gán `= None` chỉ sửa bản sao và cần `update_dataset`; `for _, row in df.iterrows()`; khối `except` viết sai; vòng `for` lồng nhau 4 vòng ngoài và 19 vòng trong; `maximum_bytes_billed` trong `QueryJobConfig`).
+  - **Checklist Excel**: xong việc cài dbt, khởi tạo, cấu hình kết nối; Tuần 3 là 2/7, tổng 25/61 (kiểm tra lại số hiển thị trong file).
+
 
 ## 8. Đang làm
 - **Tuần 2** (BigQuery nâng cao + Looker Studio), 7 việc theo checklist: nạp CSV/Parquet bằng load job (giao diện và Python, thử `load_table_from_uri`); tạo bảng partition theo ngày và so sánh bytes quét trước/sau; thêm clustering và đo lại chi phí; đọc `INFORMATION_SCHEMA.JOBS` để theo dõi chi phí từng query; học IAM cơ bản, view, materialized view; kết nối Looker Studio với BigQuery; dựng dashboard đầu tiên (KPI, biểu đồ, bộ lọc).
 - Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Cảnh báo `pandas-gbq` chưa xử lý (không bắt buộc).
 
-- **Tuần 2**: hoàn tất 7/7 (tổng 23/61).
-
 - **Tuần 3** (đang làm), 7 việc theo checklist: bật billing cho project `bq-learning-510104`; đặt budget alert (ngưỡng thấp) và quota bytes theo ngày; cài `dbt-bigquery`, khởi tạo project, cấu hình kết nối; khai báo source và viết staging model; viết mart model dùng `ref`; cài Power BI Desktop, kết nối BigQuery; tạo quan hệ giữa các bảng.
 
-- Tuần 3, Ngày 2 (kế tiếp): cài dbt-bigquery, khởi tạo project, cấu hình kết nối, kiểm tra tham số maximum_bytes_billed trong profile. Tuần 3 còn 6 việc: tick Bật billing, mục budget và quota để mở (quota chờ nâng cấp).
+- **Tuần 3, Ngày 3 (kế tiếp)**: khai báo source và viết staging model đầu tiên (dự kiến theo checklist, chưa chốt chi tiết). Tuần 3 còn 5 việc: budget alert và quota (budget xong, quota chờ nâng cấp), source và staging model, mart model dùng `ref`, Power BI kết nối BigQuery, tạo quan hệ giữa các bảng.
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -206,6 +213,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - list_tables khác get_table: list_tables(dataset) trả danh sách tóm tắt (chưa có expires); get_table(bảng) trả thông tin đầy đủ.
 - Print viết hoa (đúng là print): Python phân biệt hoa thường; nằm trong except thì cell dừng luôn.
 - Gán = None trên ds hoặc t chưa đổi gì trên cloud: phải gọi update_dataset hoặc update_table.
+- **Chọn nhầm location khi `dbt init` (`EU` thay vì `US`)**: câu hỏi là danh sách đánh số, gõ `2` ra `EU`. Dataset `lab`/`dwh`/`raw` ở US và BigQuery không nối chéo vùng. Sửa `location: US` trong `profiles.yml` rồi `dbt debug`; luôn đọc dòng `location:` trong output.
+- **`dbt init` không đặt `maximum_bytes_billed`** (hiện `None`): tự thêm vào `profiles.yml`, số nguyên viết liền (không dùng phép nhân như trong Python).
+- **Lệnh `python -c "..."` bị ngắt dòng** báo `'protobuf'' is not recognized...`: gõ liền trên một dòng.
+- **Cảnh báo vàng `Failed to remove contents in a temporary directory ...\~upb`** khi cài dbt: thư mục tạm khi pip gỡ `protobuf` cũ, không phải lỗi; `pip check` xác nhận không xung đột.
+- **Lỗi chính tả hoặc chữ hoa trong khối `except`** (`Print`, `talble_id`): chỉ nổ khi có bảng thật sự lỗi, và vì không còn `try` nào bắt nên cell dừng. Thử khối `except` bằng một tên bảng sai cố ý.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -237,6 +249,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Sửa bullet vì sao fact_items_part chỉ còn 22.817 dòng: ghi thêm "gần như xác nhận: bảng cũ có hạn partition, tạo lại sau khi gỡ thì ra đủ 180.771".
 - Thêm: có nâng cấp trả phí trước 06/01/2027 không (quyết định ~15/12/2026)?
 - Giữ nguyên câu hỏi về phí làm mới MV (vẫn chưa kiểm chứng).
+- Tuần 3, Ngày 2: dùng dbt Core cài bằng `pip` trong môi trường `bi`; kết nối `method: oauth`, không dùng service account hay file khóa (repo công khai). `profiles.yml` ở ngoài repo, không commit. Mọi query dbt có `maximum_bytes_billed: 1000000000`. dbt ghi vào dataset `dbt_dev` (US), tách khỏi `lab`, `dwh`, `raw`.
+- Trước khi commit thư mục mới: `git status -uall` để xem từng file bên trong, bảo đảm không có `logs/`, `target/` hay file bí mật.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -246,6 +260,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao các query đọc `INFORMATION_SCHEMA.JOBS` bị tính billed 20 MB thay vì 10 MB (chưa hiểu).
 - Chia sẻ dashboard Data Studio ra ngoài cần quyền gì ở BigQuery (liên quan IAM), làm sau.
 - Nếu nhiều tin tuyển dụng yêu cầu Airflow/Docker thì có đưa Tuần 9-10 lên sớm không?
+- Notebook Tuần 1-2 còn chạy ổn sau khi `protobuf` bị hạ từ 7.36.2 xuống 6.33.6 không (import `google.cloud.bigquery` đã chạy được, chưa chạy lại cell thật).
+- `dbt run` có tự tạo `dbt_dev` ở US khi chạy model đầu tiên không (chưa kiểm chứng; `dbt debug` thì không tạo).
 - (thêm câu hỏi khác tại đây)
 
 ## 12. Cách mình muốn được trả lời

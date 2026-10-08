@@ -427,3 +427,34 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
  - Cần hiểu: ba lớp import (nạp thư viện), client = ... (kênh kết nối), client.xxx(...) (gửi yêu cầu thật). Không cần thuộc tên thuộc tính.
 
  - Cần ôn lại đầu ngày sau: (1) số lần vòng trong chạy; (2) hai dòng = None chỉ sửa trong Python, cần update_dataset; (3) list_tables khác get_table; (4) for _, row in df.iterrows() (hai tên biến, nhận cặp); (5) print viết thường.
+
+ ## Tuần 3 - Ngày 2: cài dbt, khởi tạo project, kết nối BigQuery
+
+**dbt là gì, nằm ở đâu trong luồng dữ liệu?**
+- dbt biến các câu `SELECT` thành bảng hoặc view trong BigQuery theo đúng thứ tự phụ thuộc. Mình viết file `.sql` chỉ chứa `SELECT`, dbt thêm phần `CREATE` và chạy.
+- dbt không chứa dữ liệu và không lấy dữ liệu từ API. Dữ liệu vẫn nằm trong BigQuery, dbt chỉ gửi SQL lên đó, nên tiền (nếu có) vẫn là tiền BigQuery theo byte quét.
+
+**`profiles.yml` và `dbt_project.yml` khác nhau thế nào?**
+- `profiles.yml`: dbt kết nối tới đâu (project, dataset, location, kiểu đăng nhập, `maximum_bytes_billed`). Nằm ngoài repo (`%USERPROFILE%\.dbt\`), không commit.
+- `dbt_project.yml`: project dbt này làm gì (tên, thư mục model). Nằm trong `bi_dbt/`, có commit. Dòng `profile:` trong file này phải khớp tên khối ở `profiles.yml`.
+- Giống dòng `client = bigquery.Client(project=PROJECT, location="US")` trong Python, nhưng khai báo bằng file thay vì viết vào code.
+
+**Kết nối và cầu chì**
+- Dùng `method: oauth` (đăng nhập gcloud đã có), không dùng service account vì không muốn file khóa gần repo công khai.
+- `location` phải khớp vùng của dữ liệu (US); `dbt init` hỏi bằng số nên gõ nhầm ra EU, phải đọc dòng `location:` trong output `dbt debug`.
+- `maximum_bytes_billed: 1000000000` là trần byte bị tính tiền cho mỗi query của dbt; vượt thì BigQuery từ chối chạy, không tính tiền. Cùng ý với `QueryJobConfig(maximum_bytes_billed=...)` trong Python.
+- Cần hiểu: dbt chạy SQL trên BigQuery, `profiles.yml` chỉ cho dbt biết kết nối tới đâu. Không cần thuộc cú pháp YAML.
+
+**Ôn code Python cuối ngày**
+- `client.list_tables(ds)` nhận một dataset, trả danh sách bản tóm tắt; `client.get_table(item.reference)` nhận một bảng, trả thông tin đầy đủ (có `expires`).
+- `ds.default_..._ms = None` chỉ sửa bản sao trong Python; `client.update_dataset(ds, [...])` mới ghi lên BigQuery. Thiếu dòng đó, cell vẫn chạy không lỗi nhưng cloud không đổi.
+- `for _, row in df_q.iterrows():` mỗi vòng đưa ra một cặp (nhãn dòng, cả dòng); `row` là cả một dòng, `row["query"]` mới là một ô. Chỉ một tên biến thì `row` nhận cả cặp và báo `TypeError`.
+- Khối `except` viết sai (`Print`, `talble_id`) chỉ nổ khi có bảng thật sự lỗi, và vì không còn `try` bắt nên cell dừng. Khối `except` cũng cần được thử riêng.
+- Vòng `for` lồng nhau: vòng trong cộng dồn số bảng của từng dataset (4 dataset: 6 + 4 + 6 + 3 = 19 lần); số lần thật do `list_tables` trả về lúc chạy.
+- `maximum_bytes_billed` so với bytes **billed** (tối thiểu 10 MB), không phải processed.
+
+**Điều mình chưa chắc**
+- Notebook Tuần 1-2 còn chạy ổn sau khi `protobuf` bị hạ xuống 6.33.6 không (import đã chạy được, chưa chạy lại cell thật).
+- `dbt run` có tự tạo `dbt_dev` ở US không (`dbt debug` thì không).
+
+**Cần ôn lại đầu ngày sau:** `row` là cả một dòng, `row["query"]` là một ô; khối `except` chỉ chạy khi có lỗi thật nên phải thử riêng; `list_tables` (dataset) khác `get_table` (một bảng); hai dòng gán `= None` cần `update_dataset`.
