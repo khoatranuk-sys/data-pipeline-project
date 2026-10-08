@@ -350,3 +350,80 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Ngưỡng kích thước mà clustering bắt đầu có lợi (tài liệu nói chung khoảng 1 GB, không phải số cứng).
 - Bảng vừa xóa có khôi phục được trong vài ngày không (chưa kiểm lại).
 - `JOBS` có đúng là tên gọi tắt của `JOBS_BY_PROJECT` không (chưa kiểm lại).
+
+## Tuần 2 - Ngày 4: IAM, view, materialized view
+
+**IAM: cần hai role nào để chạy query?**
+- IAM gắn ba thứ: ai (tài khoản), quyền gì (role), ở đâu (project, dataset, bảng).
+- Người khác muốn chạy query cần cả Data Viewer (trên dataset hoặc bảng) và Job User (trên project). Thiếu một thì bị 403. Nguyên tắc quyền tối thiểu: cấp ở phạm vi nhỏ nhất đủ làm việc.
+- Mình là Owner của project nên dùng tài khoản của mình thì không cần cấp thêm gì. `ds.access_entries` ra 4 mục; không in `entity_id` vì repo công khai.
+
+**View khác bảng ở đâu, có rẻ hơn không?**
+- View chỉ lưu câu SQL, không lưu dữ liệu; mỗi lần hỏi view thì BigQuery chạy lại câu SQL trên bảng gốc.
+- Nên byte không giảm (hỏi qua `v_net_sales` và hỏi thẳng bảng gốc đều quét 3,15 MB, billed 10 MB, cùng kết quả). View giúp gọn và nhất quán: đổi quy tắc doanh thu ở một chỗ.
+
+**Materialized view đổi gì lấy gì?**
+- Lưu sẵn kết quả đã tính nên truy vấn đọc ít byte hơn rất nhiều (0,06 MB so với 3,15 MB), nhưng tốn thêm chỗ lưu và chi phí làm mới. Hợp với phép gom nhóm mà dashboard hỏi đi hỏi lại.
+- Trên bảng nhỏ, billed vẫn 10 MB (mức tối thiểu): byte quét giảm nhưng tiền không đổi.
+- Chưa kiểm chứng: MV tự cập nhật khi bảng gốc đổi, và phí làm mới sau khi bật billing.
+
+**Quy tắc doanh thu:** chỉ tính đơn `Complete`. Giá trị trạng thái thật: Shipped, Complete, Processing, Cancelled, Returned (tên đúng là `Shipped`, không phải `Shipping`). Luôn `GROUP BY` xem giá trị thật trước khi viết `WHERE`.
+
+**Ôn code Python cuối ngày**
+- `t = client.get_table(...)`: lấy thông tin *về* bảng (tên cột, kiểu, số dòng), không tạo query job nên không tốn byte; không lấy dữ liệu bên trong.
+- `return None if n is None else round(n / 1024 / 1024, 2)`: đổi byte sang MB; trả `None` thay vì 0 để lỗi đọc quá sớm lộ ra.
+- `for entry in ds.access_entries:`: mỗi vòng gán một mục quyền (cả gói) vào `entry`; chạy 4 lần.
+- `client.query(ddl).result()`: gửi lệnh rồi chờ xong; bỏ `.result()` thì cell sau có thể chạy trước hoặc đọc view cũ.
+- `df = job.result().to_dataframe()`: chờ job xong rồi đưa kết quả thành DataFrame trong bộ nhớ; số byte lấy từ `job.total_bytes_processed`, không phải từ `df`.
+- `f"""..."""`: chữ `f` thay `{PROJECT}` bằng giá trị biến; ba dấu ngoặc kép cho phép câu SQL xuống dòng.
+
+## Tuần 2 - Ngày 5: dashboard đầu tiên bằng Data Studio
+
+- Data Studio là tên mới của Looker Studio (đổi lại tháng 4/2026), khác Looker (trả phí, cho doanh nghiệp). Miễn phí; tiền (nếu có) chỉ đến từ query gửi xuống BigQuery. Đổi giao diện sang tiếng Anh: `https://datastudio.google.com/?hl=en`.
+- Dashboard từ `lab.mv_net_sales_daily`: 4 thẻ, biểu đồ đường theo Year Month, Date range control. Số trên thẻ khớp SQL: toàn bộ 2.702.568 / 45.282 / 1.402.617 / 51,9%; khoảng 15/01/2025 đến 06/10/2026 là 1.529.873 / 25.658 / 793.321 / 51,9%.
+
+**Những chỗ dễ nhìn nhầm**
+- `Month` là tháng trong năm (cộng dồn các năm); dùng `Year Month` để có xu hướng.
+- Bấm vào một điểm trên biểu đồ làm các thẻ lọc theo điểm đó (cross-filtering): bấm lại hoặc Reset.
+- Thẻ có theo bộ lọc ngày nhưng cập nhật chậm hơn biểu đồ (từng thẻ một); thấy số cũ không phải lỗi. Cách chắc chắn: đối chiếu bằng SQL.
+- `Record Count` đếm số dòng của nguồn (mỗi ngày một dòng) nên là số ngày, không phải số đơn.
+- Margin là tổng chia tổng (`SUM(gross_profit) / SUM(net_revenue)`), không phải trung bình các tỷ lệ từng ngày.
+- Tháng hiện tại chưa trọn làm đường biểu đồ rơi (tháng 10/2026 chỉ có 3 ngày); đỉnh 9/2026 có thật (3.447 dòng) do số dòng, không phải giá; dữ liệu mô phỏng.
+
+**Data Studio gửi query thế nào (đọc từ `INFORMATION_SCHEMA.JOBS`)**
+- Mỗi thẻ và biểu đồ là một query riêng, thường khoảng 4 query mỗi lần đổi bộ lọc; bộ lọc ngày thành `WHERE order_date >= ... AND ... <= ...`; mỗi thẻ chỉ đọc cột cần.
+- Mỗi query chạy trong BigQuery khoảng 0,2 đến 0,5 giây, processed khoảng 0,04 đến 0,06 MB, billed 10 MB. Query giống hệt (`cache_hit = TRUE`) thì processed và billed bằng 0. Vậy cảm giác chậm không đến từ BigQuery.
+- Khoảng 8 phút chỉnh bộ lọc có ít nhất 15 query billed 10 MB (khoảng 150 MB): sandbox không tính tiền, nhưng sau khi bật billing nhớ đặt quota.
+
+**Ôn code Python cuối ngày**
+- `df = job.result().to_dataframe()`: chờ job xong rồi đưa kết quả thành DataFrame, lưu trong bộ nhớ notebook (tắt kernel là mất).
+- `for _, row in df_q.iterrows():`: `iterrows()` mỗi vòng đưa ra một cặp (số thứ tự, dữ liệu dòng); hai tên biến mở cặp ra (`_` nhận số thứ tự, `row` nhận dữ liệu dòng). Chỉ một tên thì nó nhận cả cặp và `row["query"]` báo `TypeError`.
+- `print(row["query"])`: lấy giá trị cột `query` trong dòng hiện tại.
+- `print("-" * 60)`: in dải 60 ký tự gạch ngang `-` (không phải `_`); thụt vào trong `for` nên chạy mỗi vòng.
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=...)`: tắt cache không phải xóa cache, chỉ bảo query bỏ qua cache để số đo là số thật; `maximum_bytes_billed` là trần byte bị tính tiền (đổi MB sang byte), vượt thì từ chối chạy.
+- `f"""..."""`: bỏ `f` thì BigQuery nhận nguyên `{PROJECT}`; bỏ `"""` thì SQL phải nằm trên một dòng (và chú thích `--` nuốt phần còn lại của dòng).
+- In `len(df_q)` trước khi lặp: bảng rỗng thì `for` chạy 0 lần và không báo lỗi (Cell 14 ban đầu lọc 1 giờ nên rỗng).
+
+**Cần ôn lại đầu ngày sau:** `use_query_cache=False` không xóa cache; `for _, row in ...iterrows()` (hai tên biến); phân biệt `_` với `"-"` và gõ đúng `iterrows`; `.to_dataframe()` đưa kết quả thành DataFrame, không đọc byte.
+
+## Tuần 3 - Ngày 1: Billing, chi phí, gỡ hạn của sandbox
+
+**Vì sao phải gỡ hạn trước khi làm tiếp?
+ - Sandbox gắn hạn 60 ngày lên bảng và partition. Các tháng cũ của fact_items_part biến mất vì hạn partition (bảng chỉ còn 22.817 dòng thay vì 180.771).
+ - Hạn nằm ở 3 tầng: cài đặt mặc định của dataset (chỉ ảnh hưởng đối tượng tạo sau), hạn riêng của từng bảng/view/MV (t.expires), hạn partition (expiration_ms). Phải gỡ cả 3.
+ - Thứ tự: gỡ hạn trước, tạo lại bảng partition sau, nếu không bảng mới thừa hưởng hạn.
+
+**Chi phí
+ - Budget chỉ gửi thông báo, không chặn chi tiêu. Quota Query usage per day mới là cầu chì cứng nhưng chưa sửa được trên Free Trial; chờ nâng cấp trả phí.
+ - Hiện tại cầu chì là maximum_bytes_billed trong code.
+
+**Ôn code cuối ngày (Cell 4)
+
+ - Vòng for lồng nhau: vòng trong chạy lại từ đầu mỗi lần vòng ngoài đổi; tổng 6 + 4 + 6 = 16 lần. Số lần phụ thuộc số đối tượng thật mà list_tables trả về.
+ - ds.default_..._ms = None chỉ sửa bản sao trong Python; client.update_dataset(ds, [...]) mới gửi lên cloud. Thiếu dòng này thì cell vẫn chạy không lỗi nhưng cloud không đổi (sai âm thầm).
+ - list_tables chỉ trả bản tóm tắt; get_table(item.reference) lấy thông tin đầy đủ (có expires), không tạo query job nên không tốn tiền.
+ - if t.expires is not None: chỉ sửa khi có hạn; không có thì changed rỗng, không gọi update_table, nên chạy lại bao nhiêu lần cũng an toàn.
+ - try/except: một bảng lỗi thì in LỖI rồi đi tiếp; bỏ đi thì cell dừng ở bảng lỗi. Vì lỗi bị nuốt nên phải tự đọc output tìm chữ LỖI.
+ - Cần hiểu: ba lớp import (nạp thư viện), client = ... (kênh kết nối), client.xxx(...) (gửi yêu cầu thật). Không cần thuộc tên thuộc tính.
+
+ - Cần ôn lại đầu ngày sau: (1) số lần vòng trong chạy; (2) hai dòng = None chỉ sửa trong Python, cần update_dataset; (3) list_tables khác get_table; (4) for _, row in df.iterrows() (hai tên biến, nhận cặp); (5) print viết thường.

@@ -1,6 +1,6 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 02/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
+> Cập nhật lần cuối: 08/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
@@ -17,7 +17,7 @@
 ## 3. Công nghệ đã chọn
 - **Cloud warehouse**: BigQuery (đã chọn, không học Snowflake ở giai đoạn này).
 - **Biến đổi dữ liệu**: dbt (bắt đầu Tuần 3).
-- **BI**: Power BI (giả định, cần đối chiếu với tin tuyển dụng quanh mình), kèm Looker Studio để có dashboard sớm.
+- **Kèm Data Studio (tên mới của Looker Studio từ tháng 4/2026; đổi giao diện sang tiếng Anh bằng `https://datastudio.google.com/?hl=en`) để có dashboard sớm.
 - **Ưu tiên thấp (để sau)**: Airflow, Docker, Spark, Terraform. Với BI, scheduled query và lịch làm mới của công cụ BI thường là đủ.
 
 ## 4. Môi trường trên máy
@@ -27,10 +27,11 @@
 - gcloud CLI đã cài và xác thực (`gcloud auth application-default login`).
 - Git đã cài, cấu hình `user.email` bằng email noreply của GitHub.
 - Repo GitHub: `data-pipeline-project` (Public), tài khoản `khoatranuk-sys`.
-- Google Cloud project: `bq-learning-510104`, location dữ liệu là **US**, hiện dùng **sandbox** (chưa bật billing).
+- Google Cloud project: `bq-learning-510104`, location dữ liệu là **US**, đã gắn billing (tài khoản Free Trial, tiền tệ VND, hết hạn 06/01/2027); không còn là sandbox.
 - Theo dõi tiến độ bằng file Excel checklist (`lo_trinh_BI_checklist.xlsx`).
 - Cấu trúc repo thực tế (tên thư mục viết hoa): `SQL/Day 2/` (file SQL và notebook Ngày 2), `Python/Day 3/` (notebook `Day3.ipynb`), `Doc/` (ảnh sơ đồ), `Notes.md` (ghi chú các ngày), `CONTEXT.md`, `data/` (file dữ liệu tạo ra khi chạy code, **không commit**, nằm trong `.gitignore`).
 - Cách chạy query trong notebook VS Code: hai hàm dùng chung `check(sql)` (dry run, chỉ in số MB sẽ quét) và `run(sql, max_mb=100)` (chạy thật, giới hạn `maximum_bytes_billed`). Mỗi truy vấn một cell: gán `sql`, chạy `check`, thấy nhỏ rồi mới chạy `df = run(sql)`.
+- Từ Tuần 2 (notebook mới phải định nghĩa lại ở `# Cell 1`): `client` (project, location US), `mb(n)` (đổi byte sang MB, trả `None` nếu `n` là `None` để lỗi đọc quá sớm lộ ra), `check(sql)` (dry run, tắt cache), `stats(sql, max_mb=100)` (chạy thật, tắt cache, đặt `maximum_bytes_billed`, `job.result().to_dataframe()`, in processed và billed, trả DataFrame). Trước khi lặp qua một DataFrame, in `len(df)`: bảng rỗng thì vòng `for` im lặng chạy 0 lần.
 - Notebook gọi API (Ngày 3) lưu file ra `Path("../../data")` (notebook nằm ở `Python/Day 3/`, lùi hai cấp ra gốc repo).
 - Từ Ngày 4: thêm `Python/Day 4/` (notebook `Day4.ipynb`), `.env` (khóa giả để tập, **không commit**, bị `.gitignore` chặn ở dòng 151) và `.env.example` (file mẫu, có commit). Dataset `bq-learning-510104.raw` (US) chứa dữ liệu thô từ API.
 - Terminal VS Code (PowerShell) dùng Python của `base`, không phải `bi`; `conda activate bi` trong PowerShell không có tác dụng. Kernel notebook mới là môi trường `bi`, nên cài thư viện bằng `%pip install ...` trong notebook. Lệnh Git thì không phụ thuộc môi trường Python.
@@ -38,8 +39,14 @@
 - Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
 
 ## 5. Chi phí và an toàn
-- Bật billing vào đầu **Tuần 3** (dbt cần DML; sandbox có bảng tự hết hạn sau 60 ngày).
-- Khi bật billing phải đặt ngay: budget alert (ngưỡng thấp) và quota bytes query theo ngày.
+
+- Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
+- Billing đã bật (Free Trial). Budget bq-learning-budget: 100.000 VND/tháng, ngưỡng 10/50/90/100% (Actual), áp dụng All projects, đã bỏ tick Savings để không trừ tín dụng. Không bật spend cap. Budget chỉ gửi thông báo, không chặn chi tiêu.
+- Quota: không sửa được trên Free Trial (nút Edit quota bị mờ). Việc phải làm ngay sau khi nâng cấp trả phí: đặt Query usage per day và Query usage per day per user = 51200 MiB (50 GiB). Xem đơn vị hiển thị trước khi lưu.
+- Cầu chì hiện có: maximum_bytes_billed trong code Python. Quota cấp project chưa có cho tới khi nâng cấp.
+- Quyết định nâng cấp trả phí phải xong trước 06/01/2027 (có lời nhắc điện thoại ngày 15/12/2026).
+- Repo công khai: không đưa Billing account ID, email, số thẻ vào repo hoặc ghi chú.
+- Data Studio gửi khoảng 4 query mỗi lần đổi bộ lọc (mỗi thẻ và biểu đồ một query), mỗi query billed tối thiểu 10 MB; query giống hệt lần trước có thể lấy từ cache (processed 0). Chưa chia sẻ dashboard ra ngoài: phần chia sẻ gắn với IAM, làm sau.
 - Luôn xem bytes ước lượng trước khi chạy, dùng dry run và `maximum_bytes_billed` trong Python.
 - Không dùng `SELECT *` trên bảng lớn. Bytes billed có mức tối thiểu 10 MB mỗi bảng được tham chiếu.
 - Power BI dùng Import mode, tránh DirectQuery.
@@ -121,14 +128,40 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: xong 6/6 dòng (`client`, vòng `for`, `dry_run`, `job.result()`, `to_dataframe`, `delete_table`).
   - **Checklist Excel**: xong 2 việc; Tuần 2 là 4/7, tổng 20/61.
 
+- **Tuần 2, Ngày 4**: IAM, view, materialized view.
+  - **IAM**: mình là Owner của project. Dataset `lab` có 4 mục quyền (OWNER, WRITER, READER của các nhóm đặc biệt, thêm OWNER của chính mình), đọc bằng `ds.access_entries` (không in `entity_id` vì có thể là email). Người khác muốn chạy query cần cả Data Viewer (trên dataset) và Job User (trên project), thiếu một thì bị 403. Nguyên tắc quyền tối thiểu. Chưa cấp quyền cho ai.
+  - **Quy tắc doanh thu**: chỉ tính đơn `Complete` (45.282 dòng). Giá trị trạng thái thật (đếm bằng `GROUP BY status`): Shipped 53.996, Complete 45.282, Processing 36.063, Cancelled 27.373, Returned 18.057 (tổng 180.771). Tên đúng là `Shipped`, không phải `Shipping`.
+  - **View** `lab.v_net_sales` (`order_item_id`, `order_date`, `product_id`, `status`, `sale_price`, `gross_profit`, lọc `status = 'Complete'`): view chỉ lưu câu SQL nên không giảm byte (hỏi qua view và hỏi thẳng bảng gốc đều quét 3,15 MB, billed 10 MB, cùng kết quả 45.282 dòng, doanh thu khoảng 2,70 triệu).
+  - **Materialized view** `lab.mv_net_sales_daily` (`order_date`, `so_dong`, `net_revenue`, `gross_profit`, gom theo ngày, chỉ `Complete`): sandbox cho tạo. Cùng phép tính quét 0,06 MB so với 3,15 MB (ít hơn khoảng 52 lần), billed vẫn 10 MB. Đánh đổi: tốn chỗ lưu và chi phí làm mới, đổi lấy truy vấn rẻ. Chưa kiểm chứng: MV tự cập nhật khi bảng gốc đổi, và phí làm mới sau khi bật billing.
+  - **Kiểm tra độc lập**: `dwh.fact_order_items` với `status = 'Complete'` cho 45.282 dòng, doanh thu 2.702.568, lợi nhuận 1.402.617, biên 51,9% (quét 4,53 MB).
+  - **Ôn Python cuối ngày**: xong 6/6 dòng (`get_table`, hàm `mb` trả `None`, `for entry in ds.access_entries`, `client.query(ddl).result()`, `.to_dataframe()`, f-string với `"""`).
+
+- **Tuần 2, Ngày 5**: dashboard đầu tiên bằng Data Studio.
+  - **Data Studio** là tên mới của Looker Studio (đổi lại tháng 4/2026), khác Looker (trả phí, dành cho doanh nghiệp). Miễn phí; tiền (nếu có) chỉ đến từ query gửi xuống BigQuery. Kết nối: BigQuery, project `bq-learning-510104`, dataset `lab`, bảng `mv_net_sales_daily`.
+  - **Dashboard**: 4 thẻ (Net Revenue, so_dong, Gross Profit, Margin = tổng `gross_profit` chia tổng `net_revenue`, định dạng %), biểu đồ đường theo Year Month, Date range control. Tổng toàn bộ: 2.702.568 / 45.282 / 1.402.617 / 51,9%. Khoảng 15/01/2025 đến 06/10/2026: 1.529.873 / 25.658 / 793.321 / 51,9% (khớp SQL). Chưa chia sẻ.
+  - **Lỗi nhìn nhầm trên dashboard**: `Month` là tháng trong năm (cộng dồn các năm), phải dùng Year Month; bấm vào một điểm trên biểu đồ làm các thẻ lọc theo điểm đó (cross-filtering, bấm lại hoặc Reset); các thẻ có theo bộ lọc ngày nhưng cập nhật chậm hơn biểu đồ nên lúc đó thấy số cũ (đối chiếu bằng SQL cho chắc); `Record Count` là số ngày, không phải số đơn; Margin phải là tổng chia tổng.
+  - **Số liệu**: tháng 10/2026 mới có 3 ngày (291 dòng, 17.678) nên đường biểu đồ rơi; tháng 9/2026 là đỉnh (3.447 dòng, 201.674), doanh thu mỗi dòng gần như không đổi (khoảng 58,5 đến 60,9) nên đỉnh đến từ số dòng; dữ liệu là mô phỏng.
+  - **`INFORMATION_SCHEMA.JOBS`**: mỗi thẻ và biểu đồ là một query riêng, bộ lọc ngày thành `WHERE order_date >= ... AND ... <= ...`, mỗi query chạy 0,2 đến 0,5 giây trong BigQuery, processed 0,04 đến 0,06 MB, billed 10 MB; query giống hệt (`cache_hit = TRUE`) thì processed và billed bằng 0. Cảm giác chậm không đến từ BigQuery. Trong khoảng 8 phút chỉnh bộ lọc có ít nhất 15 query billed (khoảng 150 MB).
+  - **Ôn Python cuối ngày**: xong 6/6 dòng (`.to_dataframe()`, `for _, row in df_q.iterrows()`, `print("-" * 60)`, `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=...)`, f-string với `"""`, `print(row["query"])`). Cell 14 ban đầu không in gì vì `INTERVAL 1 HOUR` làm `df_q` rỗng; nới 24 giờ thì ra.
+  - **Checklist Excel**: xong 3 việc (IAM, view, MV; kết nối; dashboard); **Tuần 2 hoàn tất 7/7**, tổng 23/61.
+
+- Tuần 3, Ngày 1: billing, kiểm soát chi phí, gỡ hạn tự xóa của sandbox.
+ - Billing, budget, quota: xem mục 5.
+ - Gỡ hạn ở 3 tầng (Cell 4): dataset (default_table_expiration_ms, default_partition_expiration_ms = None), từng bảng/view/MV (t.expires), partition (time_partitioning.expiration_ms). Áp dụng cho lab, dwh, raw, tổng 16 đối tượng (lab 6, dwh 4, raw 6), không có dòng LỖI. View và MV cũng bị gắn hạn nên cũng phải gỡ. Bảng fact_items_part cũ chỉ bị gỡ phần partition, đúng với giả thuyết hạn partition làm mất các tháng cũ.
+ - Tạo lại lab.fact_items_part (Cell 5, partition theo tháng trên order_date, require_partition_filter = TRUE): 180.771 dòng, từ 2019-01-11 đến 2026-10-04, khớp fact_items_plain. Kiểm tra bằng query quét 1,38 MB, billed 10 MB.
+ - Kiểm tra sau gỡ: không đối tượng nào còn hạn (tổng 0), mọi default_..._ms là None; fact_items_part có expires và expiration_ms đều None.
+ - Ôn Python cuối ngày: xong 6/6 (vòng for lồng nhau, update_dataset, get_table, if t.expires is not None, try/except, for _, row in df.iterrows()). Bài che code: viết lại bản kiểm tra chỉ đọc (Cell 7), sai list_tables thay vì get_table, Print viết hoa và hai lỗi chính tả, đã sửa.
+
 
 ## 8. Đang làm
 - **Tuần 2** (BigQuery nâng cao + Looker Studio), 7 việc theo checklist: nạp CSV/Parquet bằng load job (giao diện và Python, thử `load_table_from_uri`); tạo bảng partition theo ngày và so sánh bytes quét trước/sau; thêm clustering và đo lại chi phí; đọc `INFORMATION_SCHEMA.JOBS` để theo dõi chi phí từng query; học IAM cơ bản, view, materialized view; kết nối Looker Studio với BigQuery; dựng dashboard đầu tiên (KPI, biểu đồ, bộ lọc).
 - Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Cảnh báo `pandas-gbq` chưa xử lý (không bắt buộc).
-- Gợi ý khi vào Tuần 2: partition và clustering sẽ giải thích tận gốc vì sao `LIMIT` không giảm chi phí, nên nối tiếp trực tiếp câu `SELECT *` của Ngày 6.
 
-- **Tuần 2**: xong 4/7 việc (load job, partition, clustering, `INFORMATION_SCHEMA.JOBS`). Còn: IAM cơ bản, view, materialized view; kết nối Looker Studio; dựng dashboard đầu tiên. Tiếp theo: Ngày 4 của Tuần 2.
-- Sandbox gắn hạn 60 ngày cho bảng và partition (bảng `dwh` hết hạn khoảng 29/11/2026). Tuần 3 khi bật billing: kiểm tra và gỡ hạn, tạo lại bảng partition với đủ dữ liệu (`lab.fact_items_part` hiện chỉ còn 22.817 dòng và đang bật `require_partition_filter`).
+- **Tuần 2**: hoàn tất 7/7 (tổng 23/61).
+
+- **Tuần 3** (đang làm), 7 việc theo checklist: bật billing cho project `bq-learning-510104`; đặt budget alert (ngưỡng thấp) và quota bytes theo ngày; cài `dbt-bigquery`, khởi tạo project, cấu hình kết nối; khai báo source và viết staging model; viết mart model dùng `ref`; cài Power BI Desktop, kết nối BigQuery; tạo quan hệ giữa các bảng.
+
+- Tuần 3, Ngày 2 (kế tiếp): cài dbt-bigquery, khởi tạo project, cấu hình kết nối, kiểm tra tham số maximum_bytes_billed trong profile. Tuần 3 còn 6 việc: tick Bật billing, mục budget và quota để mở (quota chờ nâng cấp).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -160,6 +193,19 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`ReadTimeout` khi gọi API**: lỗi mạng tạm thời, không phải lỗi code; `get_json` tự chờ và gọi lại (xem log `Lần 1/4`).
 - **Log trong notebook không hiện hoặc không đổi mức**: thêm `force=True` vào `logging.basicConfig` vì notebook thường đã có sẵn cấu hình log.
 - **`INFORMATION_SCHEMA.JOBS` trả về bảng rỗng**: bộ lọc thời gian quá hẹp (3 giờ) trong khi các query chạy cách đó hơn 5 giờ; cột thời gian là UTC. Sửa: nới lên 24 giờ. Khi gặp bảng rỗng, nới lần lượt từng điều kiện lọc để biết điều kiện nào loại mất dữ liệu.
+- **Vòng `for` không in gì, cell vẫn chạy xong không lỗi** (Cell 14 Tuần 2): DataFrame rỗng (lọc `INTERVAL 1 HOUR` quá hẹp) nên vòng lặp chạy 0 lần; dấu hiệu là `processed: 0.0 MB`. Sửa: nới lên 24 giờ, và in `len(df)` trước khi lặp.
+- **`TypeError` với `row["query"]`**: vòng lặp chỉ có một tên biến (`for row in df.iterrows()`) nên `row` nhận cả cặp (số thứ tự, dữ liệu dòng). Viết `for _, row in df.iterrows():` (và gõ đúng `iterrows`).
+- **Đọc số byte khi job chưa xong ra `None`/0**: gọi `job.result()` trước khi đọc `total_bytes_processed`; hàm `mb` trả `None` để lỗi lộ ra.
+- **Giá trị trạng thái gõ theo trí nhớ**: `Shipping` trong ghi chú nhưng dữ liệu thật là `Shipped`. Luôn `GROUP BY` xem giá trị thật trước khi viết `WHERE`.
+- **Dashboard Data Studio: số trên thẻ không đổi khi lọc ngày**: không phải lỗi, các thẻ cập nhật chậm hơn biểu đồ (từng thẻ một); kiểm tra bằng SQL. Thẻ lệch tổng còn có thể do cross-filtering (bấm lại điểm trên biểu đồ hoặc Reset).
+- **Biểu đồ trục `Month` chỉ có 12 điểm Jan đến Dec**: đó là tháng trong năm (các năm cộng dồn); chọn Year Month để có đường theo thời gian.
+- **Giao diện Data Studio tiếng Việt**: mở `https://datastudio.google.com/?hl=en` trong tab mới.
+
+- Bảng partition mất dữ liệu cũ: hạn partition 60 ngày của sandbox xóa các tháng cũ. Thứ tự đúng: gỡ hạn ở 3 tầng trước, tạo lại bảng sau, nếu không bảng mới thừa hưởng hạn.
+- Except Exception nuốt lỗi: cell vẫn chạy xong không đỏ. Sau khi chạy phải tự đọc output tìm chữ LỖI.
+- list_tables khác get_table: list_tables(dataset) trả danh sách tóm tắt (chưa có expires); get_table(bảng) trả thông tin đầy đủ.
+- Print viết hoa (đúng là print): Python phân biệt hoa thường; nằm trong except thì cell dừng luôn.
+- Gán = None trên ds hoặc t chưa đổi gì trên cloud: phải gọi update_dataset hoặc update_table.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -183,11 +229,22 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Repo cá nhân: commit thẳng lên `main`, chọn từng file bằng `git add <file>`, dùng nhánh và Pull Request khi muốn thử nghiệm hoặc làm nhóm.
 - Ngày 6: luôn chốt grain của bảng fact trước khi thiết kế; chọn SCD 1 khi không cần giữ lịch sử, SCD 2 khi báo cáo quá khứ phải giữ nguyên (chấp nhận bảng to hơn, nối phức tạp hơn).
 - Không dùng `SELECT *` trên bảng lớn; luôn liệt kê cột cần dùng.
+- Tuần 2, Ngày 4: doanh thu thực tế **chỉ tính đơn `Complete`** (loại `Shipped`, `Processing`, `Cancelled`, `Returned`); viết điều kiện dạng `status = 'Complete'` để trạng thái mới không lọt vào doanh thu một cách âm thầm. Quy tắc này nằm trong `lab.v_net_sales` và `lab.mv_net_sales_daily`.
+- Dashboard đọc từ materialized view `lab.mv_net_sales_daily` (nhỏ, đã tính sẵn), không đọc thẳng từ bảng gốc.
+- Số trên dashboard luôn đối chiếu với một câu SQL độc lập trước khi tin; tỷ lệ tính bằng tổng chia tổng.
+- Chưa bấm Share dashboard cho đến khi hiểu phần chia sẻ gắn với IAM.
+- Biểu đồ theo thời gian dùng Year Month, ghi chú khi tháng cuối chưa trọn.
+- Sửa bullet vì sao fact_items_part chỉ còn 22.817 dòng: ghi thêm "gần như xác nhận: bảng cũ có hạn partition, tạo lại sau khi gỡ thì ra đủ 180.771".
+- Thêm: có nâng cấp trả phí trước 06/01/2027 không (quyết định ~15/12/2026)?
+- Giữ nguyên câu hỏi về phí làm mới MV (vẫn chưa kiểm chứng).
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
 - Ngách nghiệp vụ cho Project 2 và freelance là gì?
-- Đơn trạng thái `Processing` và `Shipping` (chưa hoàn tất) có tính vào doanh thu không? Cần chốt quy tắc và ghi lại để các báo cáo nhất quán.
+- Materialized view có tự cập nhật khi bảng gốc đổi không, và phí làm mới sau khi bật billing là bao nhiêu (chưa kiểm chứng).
+- BigQuery có tự dùng MV khi mình hỏi trên bảng gốc không (Cell 9 Tuần 2 chỉ quét 0,04 MB, nghi là có, chưa kiểm chứng).
+- Vì sao các query đọc `INFORMATION_SCHEMA.JOBS` bị tính billed 20 MB thay vì 10 MB (chưa hiểu).
+- Chia sẻ dashboard Data Studio ra ngoài cần quyền gì ở BigQuery (liên quan IAM), làm sau.
 - Nếu nhiều tin tuyển dụng yêu cầu Airflow/Docker thì có đưa Tuần 9-10 lên sớm không?
 - (thêm câu hỏi khác tại đây)
 
@@ -203,3 +260,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Khi đưa cell notebook: ghi số cell trong code (`# Cell 3`).
 - Đầu mỗi ngày mới: nói rõ mục đích của ngày đó.
 - Cuối mỗi ngày: ôn code Python bằng 5-6 dòng quan trọng nhất của ngày. Hỏi từng câu một (mình trả lời bằng lời, rồi mới nhận xét, rồi mới sang câu sau), ghi mục đích của từng câu; trộn lại vài dòng cũ (nhất là dòng trả lời sai) vào ngày sau; không thêm phần dịch SQL sang pandas.
+- Sau mỗi ngày học, soạn sẵn nội dung cập nhật `CONTEXT.md` và `Notes.md` cho mình (không chỉ liệt kê việc cần làm).
+
+
+
+
