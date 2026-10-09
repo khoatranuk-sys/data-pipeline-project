@@ -458,3 +458,42 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - `dbt run` có tự tạo `dbt_dev` ở US không (`dbt debug` thì không).
 
 **Cần ôn lại đầu ngày sau:** `row` là cả một dòng, `row["query"]` là một ô; khối `except` chỉ chạy khi có lỗi thật nên phải thử riêng; `list_tables` (dataset) khác `get_table` (một bảng); hai dòng gán `= None` cần `update_dataset`.
+
+## Tuần 3 - Ngày 3: source và staging model
+
+**`source()` và `ref()` khác nhau thế nào?**
+- `source('thelook', 'order_items')`: trỏ tới bảng có sẵn bên ngoài dbt (ở đây là bảng trong `bigquery-public-data.thelook_ecommerce`). Giống dòng `FROM project.dataset.table`, nhưng khai báo một lần trong file `.yml`.
+- `ref('stg_thelook__order_items')`: trỏ tới một model khác do dbt tạo (một file `.sql` mình đã viết). Hôm nay chỉ dùng `source`; Ngày 4 mart sẽ dùng `ref`.
+- dbt đọc `source` và `ref` để biết thứ tự chạy các model.
+- Cần hiểu: `source` = bảng ở ngoài dbt, `ref` = model do dbt tạo. Không cần thuộc cú pháp YAML hay `{{ }}`.
+
+**Staging là gì?**
+- Mỗi bảng nguồn một model, chỉ đổi tên, chọn cột, ép kiểu; chưa có quy tắc nghiệp vụ. Quy tắc "chỉ tính đơn `Complete`" để ở tầng mart.
+- Trong BigQuery, `database` của dbt là project, `schema` của dbt là dataset.
+
+**`view` khác `table` (và chi phí)**
+- `view`: chỉ lưu câu SQL, không lưu dữ liệu. Tạo view không quét byte (`CREATE VIEW (0 processed)`), nhưng **mỗi lần có người truy vấn view** thì BigQuery chạy lại câu SQL trên bảng nguồn và tính byte. View luôn phản ánh nguồn hiện tại.
+- `table`: dbt chạy `SELECT` và lưu kết quả, tốn byte một lần lúc tạo. Truy vấn bảng đó sau này **vẫn tốn byte** (theo cột đọc), nhưng thường nhẹ hơn vì phần tính toán nặng đã làm xong. Bảng là bản chụp lúc tạo.
+- Chưa chắc: BigQuery tính tối thiểu theo bảng thế nào cho câu 1,38 MB hôm nay (có thể billed vẫn cỡ 10 MB).
+
+**Chạy dbt và kiểm tra**
+- `dbt compile --select <model>`: xem SQL đã biên dịch, không quét byte. `dbt run --select <model>`: tạo thật; luôn có `--select`, vì `models/example/` còn hai model mẫu.
+- Lần `dbt run` đầu tiên dbt tự tạo dataset `dbt_dev` (US, không hạn tự xóa). Hoàn tác: xóa dataset `dbt_dev`.
+- File `.yml` phải nằm trong `models/`, đuôi đúng `.yml` (Explorer có thể ẩn `.txt`; tạo file bằng VS Code).
+
+**Bài học BI: nguồn công khai có thể đổi**
+- View dbt có 181.466 dòng còn `lab.fact_items_plain` có 180.771 dòng. Trong cùng khoảng ngày chung, view có 174.936 dòng; chênh theo năm đổi dấu (2025: -1.002; 2026: +1.763).
+- Giả thuyết (chưa chứng minh): bảng nguồn được cập nhật sau khi chụp bản lab. View đi theo nguồn hiện tại; bảng `lab` là bản chụp cố định.
+- Cần hiểu: số liệu giữa hai ngày có thể khác khi nguồn thay đổi, nên đối chiếu trong cùng khoảng ngày và biết bảng nào là bản chụp.
+
+**Ôn code Python cuối ngày**
+- `for _, row in df.iterrows()`: `_` nhận nhãn dòng, `row` nhận cả một dòng, `row["query"]` là một ô.
+- `try/except`: dòng lỗi nhảy sang `except`, vòng `for` vẫn đi tiếp; bỏ `try/except` thì cell dừng. Đã thử bảng không tồn tại: `NotFound`.
+- `list_tables(dataset)` trả danh sách tóm tắt; `get_table(bảng)` trả thông tin đầy đủ.
+- `SELECT 1` qua `stats` cho processed 0,0 MB, billed 0,0 MB: đường chạy query vẫn tốt sau khi `protobuf` bị hạ xuống 6.33.6.
+
+**Điều mình chưa chắc**
+- Nguyên nhân thật của chênh lệch số dòng (cần xem lại SQL tạo `lab.fact_items_plain`).
+- Cách BigQuery tính byte tối thiểu cho câu truy vấn trên view.
+
+**Cần ôn lại đầu ngày sau:** (1) view khác table về chi phí (cả hai đều tốn byte khi truy vấn); (2) `ref` trỏ tới model dbt, `source` trỏ tới bảng ngoài dbt; (3) `row` là cả một dòng; (4) hai dòng gán `= None` cần `update_dataset`; (5) `profiles.yml` (kết nối) khác `dbt_project.yml` (project làm gì).

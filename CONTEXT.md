@@ -36,6 +36,7 @@
 - Từ Ngày 4: thêm `Python/Day 4/` (notebook `Day4.ipynb`), `.env` (khóa giả để tập, **không commit**, bị `.gitignore` chặn ở dòng 151) và `.env.example` (file mẫu, có commit). Dataset `bq-learning-510104.raw` (US) chứa dữ liệu thô từ API.
 - Terminal VS Code (PowerShell) dùng Python của `base`, không phải `bi`; `conda activate bi` trong PowerShell không có tác dụng. Kernel notebook mới là môi trường `bi`, nên cài thư viện bằng `%pip install ...` trong notebook. Lệnh Git thì không phụ thuộc môi trường Python.
 - dbt (từ Tuần 3 Ngày 2): cài trong môi trường `bi` bằng `pip install dbt-bigquery`, chạy trong **Anaconda Prompt** sau `conda activate bi` (không dùng terminal VS Code vì nó dùng Python của `base`). Project dbt là thư mục `bi_dbt/` trong repo (có commit, có `.gitignore` riêng). File kết nối `profiles.yml` nằm **ngoài repo** ở `%USERPROFILE%\.dbt\` và **không commit**. Cấu hình: `method: oauth` (dùng đăng nhập gcloud, không cần file khóa), `project: bq-learning-510104`, `dataset: dbt_dev`, `location: US`, `threads: 4`, `maximum_bytes_billed: 1000000000`. Kiểm tra kết nối: `cd bi_dbt` rồi `dbt debug`, mong đợi `All checks passed!`. Lệnh `python -c "..."` phải nằm trên một dòng.
+- Cấu trúc dbt (từ Tuần 3 Ngày 3): `bi_dbt/models/staging/thelook/` chứa `_thelook__sources.yml` (khai báo nguồn) và `stg_thelook__order_items.sql` (model staging, `materialized='view'`). Lệnh dùng: `dbt compile --select <model>` (xem SQL đã biên dịch, không quét byte) và `dbt run --select <model>` (luôn có `--select`, vì `models/example/` còn hai model mẫu). Anaconda Prompt hiển thị tiếng Việt vỡ chữ khi dùng `type`; không phải lỗi file, gõ `chcp 65001` nếu muốn xem đúng.
 - Khi gõ lệnh, tên nhánh, tên file: tắt bộ gõ tiếng Việt.
 - Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
 
@@ -160,15 +161,20 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Kiểm tra trước khi commit**: `git status -uall` chỉ liệt kê file cấu hình và thư mục mẫu trong `bi_dbt/`, không có `logs/` hay `target/`, không có `profiles.yml` (nó nằm ngoài repo). Dataset `dbt_dev` chưa xuất hiện trong BigQuery: `dbt debug` không tạo dataset.
   - **Ôn Python cuối ngày**: xong 6/6 (`list_tables` khác `get_table`; hai dòng gán `= None` chỉ sửa bản sao và cần `update_dataset`; `for _, row in df.iterrows()`; khối `except` viết sai; vòng `for` lồng nhau 4 vòng ngoài và 19 vòng trong; `maximum_bytes_billed` trong `QueryJobConfig`).
   - **Checklist Excel**: xong việc cài dbt, khởi tạo, cấu hình kết nối; Tuần 3 là 2/7, tổng 25/61 (kiểm tra lại số hiển thị trong file).
+  - **Tuần 3, Ngày 3**: khai báo source và viết staging model đầu tiên bằng dbt.
+  - **Source**: `_thelook__sources.yml` khai báo nguồn `thelook` (`database: bigquery-public-data`, `schema: thelook_ecommerce`) với 4 bảng `order_items`, `orders`, `products`, `users`. Trong BigQuery, `database` của dbt là project, `schema` là dataset.
+  - **Staging**: `stg_thelook__order_items.sql` (view) liệt kê từng cột, không dùng `SELECT *`: `order_item_id` (đổi từ `id`), `order_id`, `user_id`, `product_id`, `status`, `sale_price`, `created_at`, `order_date` (`date(created_at)`). Chưa có quy tắc nghiệp vụ; quy tắc "chỉ tính đơn Complete" sẽ nằm ở tầng mart.
+  - **Chạy dbt**: `dbt compile` báo `Found 3 models, 4 data tests, 4 sources`; `dbt run --select stg_thelook__order_items` báo `CREATE VIEW (0 processed)`, `PASS=1`, 13,47 giây. dbt tự tạo dataset `dbt_dev` (US, Default table expiration = Never) khi chạy model đầu tiên.
+  - **Đối chiếu số dòng**: view dbt có 181.466 dòng (2019-01-05 đến 2026-10-12), bảng `lab.fact_items_plain` có 180.771 dòng. Trong khoảng ngày của bảng lab (2019-01-11 đến 2026-10-04) view có 174.936 dòng, ngoài khoảng đó có 1 dòng trước và 6.529 dòng sau. Chênh theo năm đổi dấu (2025: -1.002; 2026: +1.763). Giả thuyết: bảng nguồn công khai được cập nhật sau khi chụp bản lab (chưa chứng minh).
+  - **Kiểm tra notebook Tuần 1-2**: `# Cell 1` chạy được, `get_table` và `SELECT 1` qua `stats` chạy được sau khi `protobuf` bị hạ xuống 6.33.6.
+  - **Checklist Excel**: bỏ tick dòng budget/quota (quota chưa làm), tick dòng cài dbt và dòng source + staging; Tuần 3 là 3/7, tổng 26/61 (kiểm tra lại số hiển thị).
 
 
 ## 8. Đang làm
-- **Tuần 2** (BigQuery nâng cao + Looker Studio), 7 việc theo checklist: nạp CSV/Parquet bằng load job (giao diện và Python, thử `load_table_from_uri`); tạo bảng partition theo ngày và so sánh bytes quét trước/sau; thêm clustering và đo lại chi phí; đọc `INFORMATION_SCHEMA.JOBS` để theo dõi chi phí từng query; học IAM cơ bản, view, materialized view; kết nối Looker Studio với BigQuery; dựng dashboard đầu tiên (KPI, biểu đồ, bộ lọc).
-- Việc cụ thể đang vướng: Git còn chưa chắc (khác nhau giữa `add` và `commit`, vì sao phải `git pull` sau khi merge); cần lặp lại nhiều lần mới quen. Cảnh báo `pandas-gbq` chưa xử lý (không bắt buộc).
 
 - **Tuần 3** (đang làm), 7 việc theo checklist: bật billing cho project `bq-learning-510104`; đặt budget alert (ngưỡng thấp) và quota bytes theo ngày; cài `dbt-bigquery`, khởi tạo project, cấu hình kết nối; khai báo source và viết staging model; viết mart model dùng `ref`; cài Power BI Desktop, kết nối BigQuery; tạo quan hệ giữa các bảng.
-
 - **Tuần 3, Ngày 3 (kế tiếp)**: khai báo source và viết staging model đầu tiên (dự kiến theo checklist, chưa chốt chi tiết). Tuần 3 còn 5 việc: budget alert và quota (budget xong, quota chờ nâng cấp), source và staging model, mart model dùng `ref`, Power BI kết nối BigQuery, tạo quan hệ giữa các bảng.
+- **Tuần 3, Ngày 4 (kế tiếp)**: viết mart model (fact/dim) dùng `ref`, hiểu `view` khác `table`; mart đầu tiên dùng `table` nên sẽ quét byte (cần cảnh báo chi phí trước khi chạy). Cần chốt trước: mart đọc thẳng bảng public (số liệu có thể đổi mỗi ngày) hay đọc từ một bản chụp của mình. Tuần 3 còn 4 việc: mart model dùng `ref`, Power BI kết nối BigQuery, tạo quan hệ giữa các bảng, và quota (chờ nâng cấp).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -207,7 +213,6 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Dashboard Data Studio: số trên thẻ không đổi khi lọc ngày**: không phải lỗi, các thẻ cập nhật chậm hơn biểu đồ (từng thẻ một); kiểm tra bằng SQL. Thẻ lệch tổng còn có thể do cross-filtering (bấm lại điểm trên biểu đồ hoặc Reset).
 - **Biểu đồ trục `Month` chỉ có 12 điểm Jan đến Dec**: đó là tháng trong năm (các năm cộng dồn); chọn Year Month để có đường theo thời gian.
 - **Giao diện Data Studio tiếng Việt**: mở `https://datastudio.google.com/?hl=en` trong tab mới.
-
 - Bảng partition mất dữ liệu cũ: hạn partition 60 ngày của sandbox xóa các tháng cũ. Thứ tự đúng: gỡ hạn ở 3 tầng trước, tạo lại bảng sau, nếu không bảng mới thừa hưởng hạn.
 - Except Exception nuốt lỗi: cell vẫn chạy xong không đỏ. Sau khi chạy phải tự đọc output tìm chữ LỖI.
 - list_tables khác get_table: list_tables(dataset) trả danh sách tóm tắt (chưa có expires); get_table(bảng) trả thông tin đầy đủ.
@@ -218,6 +223,9 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Lệnh `python -c "..."` bị ngắt dòng** báo `'protobuf'' is not recognized...`: gõ liền trên một dòng.
 - **Cảnh báo vàng `Failed to remove contents in a temporary directory ...\~upb`** khi cài dbt: thư mục tạm khi pip gỡ `protobuf` cũ, không phải lỗi; `pip check` xác nhận không xung đột.
 - **Lỗi chính tả hoặc chữ hoa trong khối `except`** (`Print`, `talble_id`): chỉ nổ khi có bảng thật sự lỗi, và vì không còn `try` nào bắt nên cell dừng. Thử khối `except` bằng một tên bảng sai cố ý.
+- **File `.yml` mở bằng Explorer thành `.yml.txt`**: Windows ẩn đuôi file đã biết, cột Type ghi "Text Document" là dấu hiệu. Tạo file bằng VS Code (New File, gõ tên có đuôi), hoặc bật View → Show → File name extensions; sửa bằng `move` đổi tên trong Anaconda Prompt.
+- **File `.yml` đặt ngoài `bi_dbt/models/`**: dbt không đọc. Mọi file source và model phải nằm trong `models/`.
+- **Anaconda Prompt hiện chữ vỡ khi `type` file tiếng Việt**: chỉ là cách hiển thị (mã hóa), nội dung file vẫn đúng; mở bằng VS Code hoặc `chcp 65001`.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -251,6 +259,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Giữ nguyên câu hỏi về phí làm mới MV (vẫn chưa kiểm chứng).
 - Tuần 3, Ngày 2: dùng dbt Core cài bằng `pip` trong môi trường `bi`; kết nối `method: oauth`, không dùng service account hay file khóa (repo công khai). `profiles.yml` ở ngoài repo, không commit. Mọi query dbt có `maximum_bytes_billed: 1000000000`. dbt ghi vào dataset `dbt_dev` (US), tách khỏi `lab`, `dwh`, `raw`.
 - Trước khi commit thư mục mới: `git status -uall` để xem từng file bên trong, bảo đảm không có `logs/`, `target/` hay file bí mật.
+- Tuần 3, Ngày 3: staging model chỉ đổi tên, chọn cột, ép kiểu (không có quy tắc nghiệp vụ); staging dùng `view`. Quy tắc doanh thu chỉ tính `Complete` nằm ở tầng mart. Luôn `dbt run --select <model>`, không chạy `dbt run` trần khi còn `models/example/`.
+- Số dòng của view dbt thay đổi theo bảng nguồn công khai; bảng `lab` và `dwh` là bản chụp cố định. Khi đối chiếu, so sánh trong cùng khoảng ngày rồi mới kết luận.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -260,8 +270,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao các query đọc `INFORMATION_SCHEMA.JOBS` bị tính billed 20 MB thay vì 10 MB (chưa hiểu).
 - Chia sẻ dashboard Data Studio ra ngoài cần quyền gì ở BigQuery (liên quan IAM), làm sau.
 - Nếu nhiều tin tuyển dụng yêu cầu Airflow/Docker thì có đưa Tuần 9-10 lên sớm không?
-- Notebook Tuần 1-2 còn chạy ổn sau khi `protobuf` bị hạ từ 7.36.2 xuống 6.33.6 không (import `google.cloud.bigquery` đã chạy được, chưa chạy lại cell thật).
-- `dbt run` có tự tạo `dbt_dev` ở US khi chạy model đầu tiên không (chưa kiểm chứng; `dbt debug` thì không tạo).
+- Vì sao view dbt và `lab.fact_items_plain` lệch số dòng (181.466 và 180.771; chênh đổi dấu qua từng năm)? Giả thuyết là bảng nguồn công khai được cập nhật, chưa chứng minh (cần xem lại SQL tạo bảng lab ở Tuần 1).
+- Mart ở Tuần 3 Ngày 4 đọc thẳng bảng public hay đọc từ một bản chụp của mình (ổn định, đối chiếu được)?
 - (thêm câu hỏi khác tại đây)
 
 ## 12. Cách mình muốn được trả lời
