@@ -1,0 +1,16 @@
+# Mục đích: khai báo cho dbt biết 4 bảng nguồn của thelook_ecommerce nằm ở đâu,
+#           để các model sau gọi bằng source('thelook', 'tên_bảng') thay vì viết tên đầy đủ.
+# Giống việc ghi rõ project.dataset.table trong FROM, nhưng khai báo một lần ở đây
+# Dùng 2 dấu cách để thụt dòng, không dùng phím Tab
+
+version: 2                              # dòng bắt buộc của file cấu hình dbt, chép nguyên
+
+sources:
+  - name: thelook                       # tên gọi tắt của nguồn; chữ này sẽ viết trong source('thelook', ...)
+    database: bigquery-public-data      # trong BigQuery, "database" của dbt chính là PROJECT
+    schema: thelook_ecommerce           # "schema" của dbt chính là DATASET
+    tables:                             # danh sách bảng mình sẽ dùng
+      - name: order_items
+      - name: orders
+      - name: products
+      - name: users
