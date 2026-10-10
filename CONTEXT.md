@@ -1,6 +1,6 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 09/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
+> Cập nhật lần cuối: 10/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
@@ -174,7 +174,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Staging mới**: `stg_thelook__products` (view): `product_id` (đổi từ `id`), `product_name`, `category`, `brand`, `department`, `cost`, `retail_price`.
   - **Mart** (`table`, trong `bi_dbt/models/marts/`): `dim_products` (từ `ref` staging products, 1 dòng = 1 sản phẩm, khoảng 29,1 nghìn dòng, quét 2,5 MiB) và `fct_net_sales` (grain: 1 mặt hàng trong 1 đơn `Complete`; `order_item_id`, `order_id`, `user_id`, `product_id`, `order_date`, `sale_price`, `cost`, `gross_profit = sale_price - cost`; `left join` sang products; quét 10,5 MiB). Quy tắc doanh thu `status = 'Complete'` nằm ở mart.
   - **`ref` và thứ tự chạy**: gõ lệnh với staging ở cuối nhưng dbt vẫn chạy staging trước (từ các `ref` dbt dựng sơ đồ phụ thuộc); hai table không phụ thuộc nhau chạy song song. `dbt run`: `PASS=3`, 33,51 giây. `dbt compile` chỉ dịch ra SQL thuần, không quét byte, không sửa file gốc.
-  - **Kiểm tra bằng notebook** (số chạy ngày 09/10/2026): `fct_net_sales` 45.529 dòng = 45.529 `order_item_id` duy nhất (đúng grain), `cost` NULL = 0 (join không mất sản phẩm), bằng số dòng `Complete` của staging (45.529). Cùng phép tính trên view staging quét 3,16 MB, trên `fct_net_sales` quét 0,35 MB, cả hai billed 10 MB (mức tối thiểu); hai kết quả giống hệt nhau.
+  - **Kiểm tra bằng notebook** (số chạy ngày 10/10/2026): `fct_net_sales` 45.529 dòng = 45.529 `order_item_id` duy nhất (đúng grain), `cost` NULL = 0 (join không mất sản phẩm), bằng số dòng `Complete` của staging (45.529). Cùng phép tính trên view staging quét 3,16 MB, trên `fct_net_sales` quét 0,35 MB, cả hai billed 10 MB (mức tối thiểu); hai kết quả giống hệt nhau.
   - **Ôn Python cuối ngày**: xong 3 câu Python + 3 câu nội dung. Cần ôn: `use_query_cache=False` không xóa cache; `df` là dữ liệu trả về, byte lấy từ `job`.
   - **Checklist Excel**: xong việc mart model dùng `ref`; Tuần 3 là 4/7, tổng 27/61.
 
