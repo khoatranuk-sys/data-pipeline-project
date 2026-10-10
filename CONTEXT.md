@@ -1,6 +1,6 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 08/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
+> Cập nhật lần cuối: 09/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
@@ -39,6 +39,7 @@
 - Cấu trúc dbt (từ Tuần 3 Ngày 3): `bi_dbt/models/staging/thelook/` chứa `_thelook__sources.yml` (khai báo nguồn) và `stg_thelook__order_items.sql` (model staging, `materialized='view'`). Lệnh dùng: `dbt compile --select <model>` (xem SQL đã biên dịch, không quét byte) và `dbt run --select <model>` (luôn có `--select`, vì `models/example/` còn hai model mẫu). Anaconda Prompt hiển thị tiếng Việt vỡ chữ khi dùng `type`; không phải lỗi file, gõ `chcp 65001` nếu muốn xem đúng.
 - Khi gõ lệnh, tên nhánh, tên file: tắt bộ gõ tiếng Việt.
 - Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
+- Cấu trúc dbt (từ Tuần 3 Ngày 4): thêm `bi_dbt/models/staging/thelook/stg_thelook__products.sql` (view) và thư mục `bi_dbt/models/marts/` chứa `dim_products.sql`, `fct_net_sales.sql` (cả hai `materialized='table'`, đặt bằng `{{ config(...) }}` trong từng file). Lệnh dùng: `dbt run --select fct_net_sales dim_products stg_thelook__products` (dbt tự xếp thứ tự theo `ref`). Bản dịch SQL nằm ở `bi_dbt\target\compiled\...`, bản chạy thật ở `target\run\...`; `target\` và `logs\` do dbt tự tạo, bị `.gitignore` chặn, không commit. File trong `models/` không bao giờ bị `dbt compile` sửa.
 
 ## 5. Chi phí và an toàn
 
@@ -169,12 +170,19 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Kiểm tra notebook Tuần 1-2**: `# Cell 1` chạy được, `get_table` và `SELECT 1` qua `stats` chạy được sau khi `protobuf` bị hạ xuống 6.33.6.
   - **Checklist Excel**: bỏ tick dòng budget/quota (quota chưa làm), tick dòng cài dbt và dòng source + staging; Tuần 3 là 3/7, tổng 26/61 (kiểm tra lại số hiển thị).
 
+  - **Tuần 3, Ngày 4**: mart model dùng `ref`.
+  - **Staging mới**: `stg_thelook__products` (view): `product_id` (đổi từ `id`), `product_name`, `category`, `brand`, `department`, `cost`, `retail_price`.
+  - **Mart** (`table`, trong `bi_dbt/models/marts/`): `dim_products` (từ `ref` staging products, 1 dòng = 1 sản phẩm, khoảng 29,1 nghìn dòng, quét 2,5 MiB) và `fct_net_sales` (grain: 1 mặt hàng trong 1 đơn `Complete`; `order_item_id`, `order_id`, `user_id`, `product_id`, `order_date`, `sale_price`, `cost`, `gross_profit = sale_price - cost`; `left join` sang products; quét 10,5 MiB). Quy tắc doanh thu `status = 'Complete'` nằm ở mart.
+  - **`ref` và thứ tự chạy**: gõ lệnh với staging ở cuối nhưng dbt vẫn chạy staging trước (từ các `ref` dbt dựng sơ đồ phụ thuộc); hai table không phụ thuộc nhau chạy song song. `dbt run`: `PASS=3`, 33,51 giây. `dbt compile` chỉ dịch ra SQL thuần, không quét byte, không sửa file gốc.
+  - **Kiểm tra bằng notebook** (số chạy ngày 09/10/2026): `fct_net_sales` 45.529 dòng = 45.529 `order_item_id` duy nhất (đúng grain), `cost` NULL = 0 (join không mất sản phẩm), bằng số dòng `Complete` của staging (45.529). Cùng phép tính trên view staging quét 3,16 MB, trên `fct_net_sales` quét 0,35 MB, cả hai billed 10 MB (mức tối thiểu); hai kết quả giống hệt nhau.
+  - **Ôn Python cuối ngày**: xong 3 câu Python + 3 câu nội dung. Cần ôn: `use_query_cache=False` không xóa cache; `df` là dữ liệu trả về, byte lấy từ `job`.
+  - **Checklist Excel**: xong việc mart model dùng `ref`; Tuần 3 là 4/7, tổng 27/61.
+
 
 ## 8. Đang làm
 
 - **Tuần 3** (đang làm), 7 việc theo checklist: bật billing cho project `bq-learning-510104`; đặt budget alert (ngưỡng thấp) và quota bytes theo ngày; cài `dbt-bigquery`, khởi tạo project, cấu hình kết nối; khai báo source và viết staging model; viết mart model dùng `ref`; cài Power BI Desktop, kết nối BigQuery; tạo quan hệ giữa các bảng.
-- **Tuần 3, Ngày 3 (kế tiếp)**: khai báo source và viết staging model đầu tiên (dự kiến theo checklist, chưa chốt chi tiết). Tuần 3 còn 5 việc: budget alert và quota (budget xong, quota chờ nâng cấp), source và staging model, mart model dùng `ref`, Power BI kết nối BigQuery, tạo quan hệ giữa các bảng.
-- **Tuần 3, Ngày 4 (kế tiếp)**: viết mart model (fact/dim) dùng `ref`, hiểu `view` khác `table`; mart đầu tiên dùng `table` nên sẽ quét byte (cần cảnh báo chi phí trước khi chạy). Cần chốt trước: mart đọc thẳng bảng public (số liệu có thể đổi mỗi ngày) hay đọc từ một bản chụp của mình. Tuần 3 còn 4 việc: mart model dùng `ref`, Power BI kết nối BigQuery, tạo quan hệ giữa các bảng, và quota (chờ nâng cấp).
+- **Tuần 3, Ngày 5 (kế tiếp, dự kiến theo checklist, chưa chốt chi tiết)**: cài Power BI Desktop và kết nối BigQuery, đọc `dbt_dev.fct_net_sales` và `dbt_dev.dim_products` (Import mode). Tuần 3 còn 3 việc: Power BI kết nối BigQuery, tạo quan hệ giữa các bảng, và quota (chờ nâng cấp).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -226,6 +234,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **File `.yml` mở bằng Explorer thành `.yml.txt`**: Windows ẩn đuôi file đã biết, cột Type ghi "Text Document" là dấu hiệu. Tạo file bằng VS Code (New File, gõ tên có đuôi), hoặc bật View → Show → File name extensions; sửa bằng `move` đổi tên trong Anaconda Prompt.
 - **File `.yml` đặt ngoài `bi_dbt/models/`**: dbt không đọc. Mọi file source và model phải nằm trong `models/`.
 - **Anaconda Prompt hiện chữ vỡ khi `type` file tiếng Việt**: chỉ là cách hiển thị (mã hóa), nội dung file vẫn đúng; mở bằng VS Code hoặc `chcp 65001`.
+- **Chạy `dbt compile` mà file trong `models/` không đổi**: đúng thiết kế, dbt không sửa file gốc (vẫn còn `{{ ref(...) }}`). Bản đã dịch hiện ở cửa sổ lệnh và lưu trong `bi_dbt\target\compiled\`; `target\` do dbt tự tạo, không commit.
+- **Nhầm `df` với `job` trong hàm `stats`**: `df` chứa kết quả của câu SQL; số byte (`processed`, `billed`) lấy từ `job`, không nằm trong `df`.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -261,6 +271,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Trước khi commit thư mục mới: `git status -uall` để xem từng file bên trong, bảo đảm không có `logs/`, `target/` hay file bí mật.
 - Tuần 3, Ngày 3: staging model chỉ đổi tên, chọn cột, ép kiểu (không có quy tắc nghiệp vụ); staging dùng `view`. Quy tắc doanh thu chỉ tính `Complete` nằm ở tầng mart. Luôn `dbt run --select <model>`, không chạy `dbt run` trần khi còn `models/example/`.
 - Số dòng của view dbt thay đổi theo bảng nguồn công khai; bảng `lab` và `dwh` là bản chụp cố định. Khi đối chiếu, so sánh trong cùng khoảng ngày rồi mới kết luận.
+- Tuần 3, Ngày 4: mart đọc từ staging bằng `ref` (staging đọc bảng public), kiểu `table`: số liệu đứng yên cho đến lần `dbt run` kế tiếp, nên Power BI đọc bảng này; chạy lại một model `table` là ghi đè bản chụp cũ, không giữ lịch sử. Không đối chiếu mart với `lab.fact_items_plain` (nguồn đã lệch); đối chiếu mart với staging cùng lúc. Mart dùng `left join` và kiểm tra `cost IS NULL` + so số dòng với staging, không dùng `join` thường. Tên mart trong dbt: `fct_*` và `dim_*` (khác `fact_*` ở dataset `dwh`).
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -273,6 +284,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao view dbt và `lab.fact_items_plain` lệch số dòng (181.466 và 180.771; chênh đổi dấu qua từng năm)? Giả thuyết là bảng nguồn công khai được cập nhật, chưa chứng minh (cần xem lại SQL tạo bảng lab ở Tuần 1).
 - Mart ở Tuần 3 Ngày 4 đọc thẳng bảng public hay đọc từ một bản chụp của mình (ổn định, đối chiếu được)?
 - (thêm câu hỏi khác tại đây)
+- `fct_net_sales` có 45.529 dòng `Complete`, còn bản `lab` là 45.282 (chênh 247). Vẫn chưa chứng minh được là do nguồn public đổi.
+- Truy vấn trên view cũng billed 10 MB (một lần đo ngày 09/10); câu có hai bảng tham chiếu thì billed 20 MB. Mới đo một lần, cần thêm lần đo để chắc.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).

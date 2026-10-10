@@ -497,3 +497,43 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Cách BigQuery tính byte tối thiểu cho câu truy vấn trên view.
 
 **Cần ôn lại đầu ngày sau:** (1) view khác table về chi phí (cả hai đều tốn byte khi truy vấn); (2) `ref` trỏ tới model dbt, `source` trỏ tới bảng ngoài dbt; (3) `row` là cả một dòng; (4) hai dòng gán `= None` cần `update_dataset`; (5) `profiles.yml` (kết nối) khác `dbt_project.yml` (project làm gì).
+
+## Tuần 3 - Ngày 4: mart model dùng ref
+
+**Staging và mart khác nhau thế nào?**
+- Staging: mỗi bảng nguồn một model, chỉ đổi tên, chọn cột, ép kiểu; chưa có quy tắc nghiệp vụ; dùng `view`. Mart: join, lọc, tính chỉ số, là bảng cho BI đọc; dùng `table`.
+- Quy tắc "chỉ tính `Complete`" nằm ở mart (`fct_net_sales`). Nếu staging đã lọc sẵn thì về sau không còn dữ liệu `Returned` để phân tích.
+
+**`ref` làm gì?**
+- `ref('tên_file')` nằm trong `from` hoặc `join`, và chính nó khai báo quan hệ phụ thuộc (không có chỗ khai báo riêng, khác `source` phải khai báo trong `.yml`).
+- dbt đọc mọi `ref`, dựng sơ đồ model nào đọc model nào, rồi tự xếp thứ tự chạy: gõ staging ở cuối lệnh nhưng log vẫn chạy nó đầu tiên; hai table không phụ thuộc nhau chạy song song.
+- Viết tay `CREATE TABLE ... AS SELECT` sai thứ tự thì gặp `Not found: Table ...` (bảng chưa được tạo khi bảng sau cần đọc).
+- Mình chỉ viết `SELECT`; dbt thêm `create or replace table` (hoặc view) theo `config(materialized=...)`.
+
+**`dbt compile` và thư mục `target\`**
+- `compile` dịch Jinja thành SQL thuần, không gửi lên BigQuery, không quét byte, không sửa file gốc. Bản dịch ở `target\compiled\`, bản chạy thật ở `target\run\`. `target\` và `logs\` do dbt tự tạo, bị `.gitignore` chặn.
+- `compile` kiểm tra phần dbt (Jinja, `ref`), không kiểm tra SQL có đúng với BigQuery (sai tên cột chỉ lộ khi chạy thật).
+
+**`left join` và kiểm tra mart**
+- `left join` giữ dòng không khớp (cột bên products là NULL); `join` thường làm dòng biến mất âm thầm.
+- Kiểm tra gồm hai phần bổ sung nhau: `countif(cost is null)` bắt NULL; so số dòng với staging bắt dòng bị mất hoặc nhân.
+- Kết quả (09/10/2026): `fct_net_sales` 45.529 dòng = 45.529 id duy nhất, `cost` NULL = 0, bằng 45.529 dòng `Complete` của staging. Chỉ chứng minh mart khớp staging, chưa chứng minh staging khớp bảng public.
+
+**View khác table về chi phí (đã đo)**
+- Cùng phép `count(*), sum(sale_price)` với `status = 'Complete'`: view quét 3,16 MB (đọc lại bảng public, khoảng 181 nghìn dòng), table quét 0,35 MB (chỉ còn các dòng `Complete`); cả hai billed 10 MB do mức tối thiểu. Trên bảng nhỏ, quét ít hơn không làm rẻ hơn.
+- `df_v.equals(df_t)` là `True`: hai kết quả giống hệt nhau.
+- `dbt run`: `dim_products` 29,1 nghìn dòng (2,5 MiB), `fct_net_sales` 45,5 nghìn dòng (10,5 MiB).
+
+**Scheduled query và dbt**
+- Scheduled query lo "khi nào chạy"; dbt lo "chạy những gì, theo thứ tự nào, có kiểm tra không". Bổ sung nhau, không thay nhau. Chỉ thêm dữ liệu theo ngày mà không có khóa thì chạy lại sẽ bị trùng (như `WRITE_APPEND`); dbt incremental (Tuần 4) giải quyết bằng khóa.
+
+**Ôn code Python cuối ngày**
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: tắt cache chỉ là bỏ qua cache cho query này (không xóa gì); trần byte bị tính tiền, nhân `1024 * 1024` để đổi MB sang byte; vượt thì BigQuery từ chối chạy, không tính tiền.
+- `df = job.result().to_dataframe()` rồi `print(... job.total_bytes_processed ...)`: `result()` chờ job xong; đọc byte quá sớm thì ra `None`. `df` là dữ liệu trả về, byte lấy từ `job`.
+- `df_v.equals(df_t)`: `df_v` và `df_t` là DataFrame kết quả của hai câu SQL (không phải số byte); trả `True` hoặc `False`.
+
+**Điều mình chưa chắc**
+- Vì sao `fct_net_sales` (45.529) lệch bản `lab` (45.282): giả thuyết nguồn public đổi, chưa chứng minh.
+- Truy vấn hai bảng billed 20 MB có đúng do mức tối thiểu 10 MB mỗi bảng không (mới một lần đo).
+
+**Cần ôn lại đầu ngày sau:** (1) `use_query_cache=False` không xóa cache; (2) `df` chứa kết quả, byte nằm ở `job`; (3) `job.result()` chờ job xong; (4) view không lưu dữ liệu nên đọc lại bảng gốc; (5) `ref` khai báo ngay trong `from`/`join`.
