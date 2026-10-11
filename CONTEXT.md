@@ -1,6 +1,6 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 10/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
+> Cập nhật lần cuối: 11/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
@@ -40,6 +40,7 @@
 - Khi gõ lệnh, tên nhánh, tên file: tắt bộ gõ tiếng Việt.
 - Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
 - Cấu trúc dbt (từ Tuần 3 Ngày 4): thêm `bi_dbt/models/staging/thelook/stg_thelook__products.sql` (view) và thư mục `bi_dbt/models/marts/` chứa `dim_products.sql`, `fct_net_sales.sql` (cả hai `materialized='table'`, đặt bằng `{{ config(...) }}` trong từng file). Lệnh dùng: `dbt run --select fct_net_sales dim_products stg_thelook__products` (dbt tự xếp thứ tự theo `ref`). Bản dịch SQL nằm ở `bi_dbt\target\compiled\...`, bản chạy thật ở `target\run\...`; `target\` và `logs\` do dbt tự tạo, bị `.gitignore` chặn, không commit. File trong `models/` không bao giờ bị `dbt compile` sửa.
+- Power BI (từ Tuần 3 Ngày 5): Power BI Desktop (Windows), connector Google BigQuery, Import mode, Billing Project ID `bq-learning-510104`. Đăng nhập ở tab Organizational account bằng tài khoản Google của GCP (tab Service Account Login cần file khóa JSON nên không dùng). Chỉ nạp `dbt_dev.dim_products` và `dbt_dev.fct_net_sales`, không nạp các view `stg_*`. File `.pbix` lưu ngoài repo (ví dụ `D:\BI\powerbi\`), chưa commit.
 
 ## 5. Chi phí và an toàn
 
@@ -55,6 +56,7 @@
 - Power BI dùng Import mode, tránh DirectQuery.
 - Gọi API: luôn đặt `timeout`; với API miễn phí nghỉ giữa các lần gọi (`time.sleep`) để không bị 429.
 - API key (nếu có, API thật của khách): không viết thẳng vào code vì repo công khai; đã học ở Ngày 4: để khóa trong `.env` (đã bị `.gitignore` chặn), đọc bằng `python-dotenv`, chỉ commit `.env.example`.
+- Power BI không dùng `maximum_bytes_billed`; cầu chì hiện là kích thước bảng nhỏ. Import mode chỉ tốn byte lúc Load/Refresh (mỗi bảng có thể bị tính tối thiểu 10 MB); lọc và bấm biểu đồ sau khi đã Load không tốn byte. Không Publish, không đặt scheduled refresh khi chưa hiểu phần chia sẻ.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -178,11 +180,19 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: xong 3 câu Python + 3 câu nội dung. Cần ôn: `use_query_cache=False` không xóa cache; `df` là dữ liệu trả về, byte lấy từ `job`.
   - **Checklist Excel**: xong việc mart model dùng `ref`; Tuần 3 là 4/7, tổng 27/61.
 
+  - **Tuần 3, Ngày 5**: Power BI Desktop đọc bảng mart, tạo quan hệ.
+  - **Kết nối**: Get data → Google BigQuery, Import mode, đọc `dbt_dev.fct_net_sales` và `dbt_dev.dim_products`.
+  - **Quan hệ**: `fct_net_sales.product_id` (nhiều) → `dim_products.product_id` (một), Many to one, Single, active. Bộ lọc đi từ bảng một sang bảng nhiều. `dim_products` 29.120 dòng = 29.120 `product_id` duy nhất; `fct_net_sales` không có `product_id` lệch (0).
+  - **Đối chiếu** (11/10/2026): SQL cho 45.529 dòng = 45.529 `order_item_id` duy nhất, doanh thu 2.685.271,28, lợi nhuận 1.391.199,0 (quét 1,04 MB, billed 10 MB). Power BI: Count 45.529; tổng bảng theo category 2.685.271,28; card lợi nhuận 1,39M (đã làm tròn). Tổng bảng category khớp card doanh thu.
+  - **Làm mới số liệu**: `fct_net_sales` là bản chụp lúc `dbt run` cuối, Power BI là bản sao lúc Refresh cuối; muốn số mới thì `dbt run` rồi Refresh.
+  - **Ôn Python cuối ngày**: xong 3 câu Python + 3 câu nội dung. Cần ôn: hướng lọc từ một sang nhiều (mình nói ngược), `job.result()` phải đứng trước khi đọc byte, `client` là kênh kết nối (không phải dbt), `location` phải khớp vùng dataset.
+  - **Checklist Excel**: xong 2 việc (Power BI kết nối; quan hệ); Tuần 3 là 6/7, tổng 29/61.
+
 
 ## 8. Đang làm
 
 - **Tuần 3** (đang làm), 7 việc theo checklist: bật billing cho project `bq-learning-510104`; đặt budget alert (ngưỡng thấp) và quota bytes theo ngày; cài `dbt-bigquery`, khởi tạo project, cấu hình kết nối; khai báo source và viết staging model; viết mart model dùng `ref`; cài Power BI Desktop, kết nối BigQuery; tạo quan hệ giữa các bảng.
-- **Tuần 3, Ngày 5 (kế tiếp, dự kiến theo checklist, chưa chốt chi tiết)**: cài Power BI Desktop và kết nối BigQuery, đọc `dbt_dev.fct_net_sales` và `dbt_dev.dim_products` (Import mode). Tuần 3 còn 3 việc: Power BI kết nối BigQuery, tạo quan hệ giữa các bảng, và quota (chờ nâng cấp).
+- **Tuần 3, Ngày 5 (đã xong)**: xem mục 7. Tuần 3 còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -236,6 +246,10 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Anaconda Prompt hiện chữ vỡ khi `type` file tiếng Việt**: chỉ là cách hiển thị (mã hóa), nội dung file vẫn đúng; mở bằng VS Code hoặc `chcp 65001`.
 - **Chạy `dbt compile` mà file trong `models/` không đổi**: đúng thiết kế, dbt không sửa file gốc (vẫn còn `{{ ref(...) }}`). Bản đã dịch hiện ở cửa sổ lệnh và lưu trong `bi_dbt\target\compiled\`; `target\` do dbt tự tạo, không commit.
 - **Nhầm `df` với `job` trong hàm `stats`**: `df` chứa kết quả của câu SQL; số byte (`processed`, `billed`) lấy từ `job`, không nằm trong `df`.
+- **Ngày trong Power BI hiện dạng `Wednesday, November 5, 2025`**: không phải lỗi, chỉ là định dạng hiển thị; đổi ở Column tools → Format.
+- **Cột số thực (FLOAT) hiện nhiều chữ số lẻ trong Power BI** (`8.77499999478459`): sai số nhỏ của kiểu số thực, không phải lỗi; đặt hiển thị 2 chữ số thập phân và so sánh sau khi làm tròn.
+- **Card Power BI hiện `45.529K` và `1.39M`**: đã làm tròn để hiển thị; muốn so từng chữ số, đặt Display units = None.
+- **Hộp thoại đăng nhập BigQuery có hai tab**: chọn Organizational account (đăng nhập Google qua trình duyệt); Service Account Login cần file khóa JSON nên không dùng.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -264,14 +278,12 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Số trên dashboard luôn đối chiếu với một câu SQL độc lập trước khi tin; tỷ lệ tính bằng tổng chia tổng.
 - Chưa bấm Share dashboard cho đến khi hiểu phần chia sẻ gắn với IAM.
 - Biểu đồ theo thời gian dùng Year Month, ghi chú khi tháng cuối chưa trọn.
-- Sửa bullet vì sao fact_items_part chỉ còn 22.817 dòng: ghi thêm "gần như xác nhận: bảng cũ có hạn partition, tạo lại sau khi gỡ thì ra đủ 180.771".
-- Thêm: có nâng cấp trả phí trước 06/01/2027 không (quyết định ~15/12/2026)?
-- Giữ nguyên câu hỏi về phí làm mới MV (vẫn chưa kiểm chứng).
 - Tuần 3, Ngày 2: dùng dbt Core cài bằng `pip` trong môi trường `bi`; kết nối `method: oauth`, không dùng service account hay file khóa (repo công khai). `profiles.yml` ở ngoài repo, không commit. Mọi query dbt có `maximum_bytes_billed: 1000000000`. dbt ghi vào dataset `dbt_dev` (US), tách khỏi `lab`, `dwh`, `raw`.
 - Trước khi commit thư mục mới: `git status -uall` để xem từng file bên trong, bảo đảm không có `logs/`, `target/` hay file bí mật.
 - Tuần 3, Ngày 3: staging model chỉ đổi tên, chọn cột, ép kiểu (không có quy tắc nghiệp vụ); staging dùng `view`. Quy tắc doanh thu chỉ tính `Complete` nằm ở tầng mart. Luôn `dbt run --select <model>`, không chạy `dbt run` trần khi còn `models/example/`.
 - Số dòng của view dbt thay đổi theo bảng nguồn công khai; bảng `lab` và `dwh` là bản chụp cố định. Khi đối chiếu, so sánh trong cùng khoảng ngày rồi mới kết luận.
 - Tuần 3, Ngày 4: mart đọc từ staging bằng `ref` (staging đọc bảng public), kiểu `table`: số liệu đứng yên cho đến lần `dbt run` kế tiếp, nên Power BI đọc bảng này; chạy lại một model `table` là ghi đè bản chụp cũ, không giữ lịch sử. Không đối chiếu mart với `lab.fact_items_plain` (nguồn đã lệch); đối chiếu mart với staging cùng lúc. Mart dùng `left join` và kiểm tra `cost IS NULL` + so số dòng với staging, không dùng `join` thường. Tên mart trong dbt: `fct_*` và `dim_*` (khác `fact_*` ở dataset `dwh`).
+- Tuần 3, Ngày 5: Power BI đọc bảng mart `dbt_dev` bằng Import mode (không dùng DirectQuery), không nạp view `stg_*`. Quan hệ `fct_net_sales.product_id` → `dim_products.product_id`, Many to one, Single. Đối chiếu số trong Power BI với SQL chạy trên cùng bảng mart. `.pbix` để ngoài repo cho đến khi quyết định ở Tuần 5. Làm mới số liệu theo thứ tự: `dbt run` rồi Refresh Power BI.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -285,7 +297,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Mart ở Tuần 3 Ngày 4 đọc thẳng bảng public hay đọc từ một bản chụp của mình (ổn định, đối chiếu được)?
 - (thêm câu hỏi khác tại đây)
 - `fct_net_sales` có 45.529 dòng `Complete`, còn bản `lab` là 45.282 (chênh 247). Vẫn chưa chứng minh được là do nguồn public đổi.
-- Truy vấn trên view cũng billed 10 MB (một lần đo ngày 09/10); câu có hai bảng tham chiếu thì billed 20 MB. Mới đo một lần, cần thêm lần đo để chắc.
+- Truy vấn trên view cũng billed 10 MB (một lần đo ngày 09/10). Câu có hai bảng tham chiếu billed 20 MB (đo lại ngày 11/10: processed 0,57 MB, billed 20 MB), ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng"; mới hai lần đo.
+- Mỗi lần Refresh trong Power BI đọc bao nhiêu byte, và qua job thường hay Storage Read API (chưa đo)?
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).

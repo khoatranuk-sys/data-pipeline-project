@@ -537,3 +537,44 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Truy vấn hai bảng billed 20 MB có đúng do mức tối thiểu 10 MB mỗi bảng không (mới một lần đo).
 
 **Cần ôn lại đầu ngày sau:** (1) `use_query_cache=False` không xóa cache; (2) `df` chứa kết quả, byte nằm ở `job`; (3) `job.result()` chờ job xong; (4) view không lưu dữ liệu nên đọc lại bảng gốc; (5) `ref` khai báo ngay trong `from`/`join`.
+
+## Tuần 3 - Ngày 5: Power BI Desktop, Import mode, quan hệ
+
+**Import mode khác Data Studio thế nào?**
+- Import: Power BI đọc bảng từ BigQuery mỗi lần Load/Refresh, rồi giữ bản sao hai bảng trong file `.pbix`. Lọc và bấm biểu đồ chạy trên bản sao này, không gọi BigQuery nên không tốn byte.
+- Data Studio: mỗi thẻ và biểu đồ gửi một query xuống BigQuery mỗi lần đổi bộ lọc (khoảng 4 query, mỗi query billed tối thiểu 10 MB).
+- Đánh đổi: dữ liệu chỉ mới đến lần Refresh gần nhất.
+
+**Kết nối**
+- Get data → Google BigQuery, Import mode, Billing Project ID `bq-learning-510104`, đăng nhập tab Organizational account bằng tài khoản Google của GCP. Tab Service Account Login cần file khóa JSON nên không dùng.
+- Chỉ nạp `dim_products` và `fct_net_sales`; không nạp `stg_*` vì view đọc lại bảng public.
+- Power BI không dùng `maximum_bytes_billed`; cầu chì hôm nay là bảng nhỏ.
+
+**Quan hệ**
+- `fct_net_sales.product_id` (nhiều) → `dim_products.product_id` (một), Many to one, Single, active.
+- Bộ lọc đi từ bảng một (dimension) sang bảng nhiều (fact). Quan hệ là đường truyền bộ lọc: không có quan hệ thì mọi category ra cùng một tổng (tổng cả bảng fact).
+- Phía "một" phải duy nhất: `dim_products` 29.120 dòng = 29.120 `product_id`; `fct_net_sales` không có `product_id` lệch (0).
+- Cần hiểu: quan hệ là đường truyền bộ lọc, đi từ một sang nhiều. Không cần thuộc tên các tùy chọn trong hộp thoại.
+
+**Đối chiếu số (11/10/2026)**
+- SQL (Cell 2): 45.529 dòng = 45.529 id duy nhất; doanh thu 2.685.271,28; lợi nhuận 1.391.199,0 (processed 1,04 MB, billed 10 MB).
+- Power BI: Count 45.529; tổng bảng theo category 2.685.271,28; card lợi nhuận 1,39M (làm tròn).
+- Cell 3 (hai bảng) processed 0,57 MB, billed 20 MB.
+
+**Hiển thị**
+- Ngày dài `Wednesday, November 5, 2025` chỉ là định dạng hiển thị, đổi ở Column tools → Format.
+- Cột số thực hiện nhiều chữ số lẻ do kiểu FLOAT; so sánh sau khi làm tròn 2 chữ số.
+
+**Làm mới số liệu**
+- `fct_net_sales` là bản chụp lúc `dbt run` cuối; Power BI là bản sao lúc Refresh cuối. Muốn số mới: `dbt run` (Anaconda Prompt, env `bi`, trong `bi_dbt`) rồi Refresh Power BI. Làm ngược thứ tự thì Power BI vẫn đọc bảng cũ.
+
+**Ôn code Python cuối ngày**
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: tắt cache chỉ là bỏ qua cache cho query này (không xóa gì); trần so với bytes billed (tối thiểu 10 MB); nhân `1024 * 1024` để đổi MB sang byte; vượt thì BigQuery từ chối chạy, không tính tiền.
+- `df = job.result().to_dataframe()`: `result()` chờ job xong; đọc byte quá sớm thì ra `None`. Byte lấy từ `job`, `df` chỉ là kết quả của câu SQL.
+- `client = bigquery.Client(project=PROJECT, location="US")`: tạo kênh kết nối; `client.query(...)` dùng kênh này gửi SQL và tạo `job`. `location` phải khớp vùng dataset (dbt có `location` riêng trong `profiles.yml`).
+
+**Điều mình chưa chắc**
+- Mỗi lần Refresh đọc bao nhiêu byte, qua job thường hay Storage Read API.
+- Tên menu Power BI có thể khác tùy phiên bản.
+
+**Cần ôn lại đầu ngày sau:** (1) bộ lọc đi từ một sang nhiều (mình từng nói ngược); (2) `job.result()` phải đứng trước khi đọc byte, nếu không là `None`; (3) `client` là kênh kết nối, `location` phải khớp vùng dataset; (4) làm mới số: `dbt run` rồi Refresh; (5) `use_query_cache=False` không xóa cache.
