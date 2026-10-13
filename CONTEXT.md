@@ -1,13 +1,13 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 11/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
+> Cập nhật lần cuối: 13/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
 - **BI là chính**, data engineering (DE) là phụ.
 - Cần biết cloud data platform và pipeline dữ liệu vì các vị trí BI hiện nay yêu cầu.
 - Có thể làm freelance BI sau khi xong lộ trình (dashboard, báo cáo tự động cho doanh nghiệp nhỏ).
-- Thời gian học: khoảng 40 giờ/tuần, lộ trình 8 tuần (Tuần 9-10 là phần tùy chọn hướng DE).
+- Thời gian học: khoảng 8 giờ/ngày, lộ trình 8 tuần + 2 tuần "Project thành thạo" (Tuần 9-10, dữ liệu khác Olist, làm từ đầu). Hướng DE (Docker, Airflow, Terraform, Spark) hoãn, chỉ học khi gặp việc yêu cầu. Ứng tuyển bắt đầu sau Tuần 10.
 
 ## 2. Trình độ hiện tại
 - SQL: vững.
@@ -41,6 +41,7 @@
 - Pipeline chạy bằng một lệnh: `D:\Installsoftware\Anaconda\envs\bi\python.exe "Python\Day 5\weather_pipeline.py"` (dùng đường dẫn đầy đủ tới Python của `bi`; gõ `python` trong terminal VS Code sẽ dùng `base` và báo thiếu `google.cloud`). Log ghi ra `logs/weather_pipeline.log` (bị `.gitignore` chặn).
 - Cấu trúc dbt (từ Tuần 3 Ngày 4): thêm `bi_dbt/models/staging/thelook/stg_thelook__products.sql` (view) và thư mục `bi_dbt/models/marts/` chứa `dim_products.sql`, `fct_net_sales.sql` (cả hai `materialized='table'`, đặt bằng `{{ config(...) }}` trong từng file). Lệnh dùng: `dbt run --select fct_net_sales dim_products stg_thelook__products` (dbt tự xếp thứ tự theo `ref`). Bản dịch SQL nằm ở `bi_dbt\target\compiled\...`, bản chạy thật ở `target\run\...`; `target\` và `logs\` do dbt tự tạo, bị `.gitignore` chặn, không commit. File trong `models/` không bao giờ bị `dbt compile` sửa.
 - Power BI (từ Tuần 3 Ngày 5): Power BI Desktop (Windows), connector Google BigQuery, Import mode, Billing Project ID `bq-learning-510104`. Đăng nhập ở tab Organizational account bằng tài khoản Google của GCP (tab Service Account Login cần file khóa JSON nên không dùng). Chỉ nạp `dbt_dev.dim_products` và `dbt_dev.fct_net_sales`, không nạp các view `stg_*`. File `.pbix` lưu ngoài repo (ví dụ `D:\BI\powerbi\`), chưa commit.
+- Cấu trúc dbt (từ Tuần 4 Ngày 1): thêm `bi_dbt/models/marts/_marts__models.yml` (khai báo test cho `dim_products` và `fct_net_sales`, có commit). Lệnh dùng: `dbt test --select dim_products fct_net_sales` (`test` là lệnh, `--select` là tùy chọn; dbt chạy mọi test có đụng tới model được chọn, kể cả test `relationships` đặt ở model khác). SQL của từng test nằm ở `bi_dbt\target\compiled\bi_dbt\models\marts\_marts__models.yml\` (tên thư mục là `_marts__models.yml`, do dbt tự tạo, không commit). Notebook tuần 4: `Python/Week 4/Day1.ipynb` (sửa lại nếu bạn đặt tên khác).
 
 ## 5. Chi phí và an toàn
 
@@ -57,6 +58,7 @@
 - Gọi API: luôn đặt `timeout`; với API miễn phí nghỉ giữa các lần gọi (`time.sleep`) để không bị 429.
 - API key (nếu có, API thật của khách): không viết thẳng vào code vì repo công khai; đã học ở Ngày 4: để khóa trong `.env` (đã bị `.gitignore` chặn), đọc bằng `python-dotenv`, chỉ commit `.env.example`.
 - Power BI không dùng `maximum_bytes_billed`; cầu chì hiện là kích thước bảng nhỏ. Import mode chỉ tốn byte lúc Load/Refresh (mỗi bảng có thể bị tính tối thiểu 10 MB); lọc và bấm biểu đồ sau khi đã Load không tốn byte. Không Publish, không đặt scheduled refresh khi chưa hiểu phần chia sẻ.
+- dbt test (từ Tuần 4 Ngày 1): mỗi test là một query gửi lên BigQuery, billed tối thiểu 10 MB mỗi bảng được đọc (`relationships` đọc 2 bảng); mỗi query bị chặn bởi `maximum_bytes_billed: 1000000000` trong `profiles.yml`. Chạy test không tạo bảng. Chi phí cả buổi chưa đo (ước tính vài trăm MB, dưới 0,01 USD).
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -64,12 +66,13 @@
 | 1 | Mô hình dữ liệu (star schema, SCD), Python cho pipeline (API, retry, Parquet), Git, thiết lập BigQuery |
 | 2 | BigQuery sâu (load job, partitioning, clustering, INFORMATION_SCHEMA, IAM), Looker Studio |
 | 3 | Bật billing + kiểm soát chi phí, dbt phần 1 (source, staging, mart), Power BI kết nối BigQuery |
-| 4 | dbt phần 2 (test, docs, incremental, snapshot), DAX cơ bản, bắt đầu ứng tuyển |
-| 5 | Power BI nâng cao (DAX, thiết kế dashboard), hoàn thành Project 1 |
-| 6 | Tự động hóa (Python API/Sheets vào BigQuery, scheduled query), chọn ngách nghiệp vụ |
-| 7 | Project 2 theo ngách, đóng gói dịch vụ freelance |
+| 4 | dbt phần 2 (test, docs, incremental), DAX cơ bản, star schema trong Power BI, cập nhật CV và LinkedIn |
+| 5 | Power BI nâng cao (DAX, thiết kế dashboard), hoàn thành Project 1 (dữ liệu mô phỏng, học công cụ), chốt ngách và dữ liệu thật |
+| 6 | Tự động hóa (Python API/Sheets vào BigQuery, scheduled query), nạp dữ liệu thật cho Project 2 |
+| 7 | Project 2 (dữ liệu thật), case study |
 | 8 | Portfolio, CV, luyện phỏng vấn |
-| 9-10 | Tùy chọn: Docker, Airflow, Terraform, Spark |
+| 9-10 | Project thành thạo: bộ dữ liệu logistics/e-commerce khác Olist, làm từ đầu, ít xem hướng dẫn |
+| Tùy chọn / Hoãn | dbt snapshot (SCD Type 2), gói dịch vụ freelance; hướng DE (Docker, Airflow, Terraform, Spark) |
 
 Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày 3 Python cho pipeline (1), Ngày 4 Python (2) + Git, Ngày 5 mini project (API → làm sạch → BigQuery, có logging, README), Ngày 6 ôn tập.
 
@@ -188,11 +191,20 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: xong 3 câu Python + 3 câu nội dung. Cần ôn: hướng lọc từ một sang nhiều (mình nói ngược), `job.result()` phải đứng trước khi đọc byte, `client` là kênh kết nối (không phải dbt), `location` phải khớp vùng dataset.
   - **Checklist Excel**: xong 2 việc (Power BI kết nối; quan hệ); Tuần 3 là 6/7, tổng 29/61.
 
+- **Tuần 4, Ngày 1**: dbt test trên 2 mart.
+  - **File test**: `bi_dbt/models/marts/_marts__models.yml`, 7 test: `dim_products.product_id` (`unique`, `not_null`), `dim_products.department` (`accepted_values`: `Women`, `Men`), `fct_net_sales.order_item_id` (`unique`, `not_null`), `fct_net_sales.product_id` (`not_null`, `relationships` sang `ref('dim_products')`). Khóa `data_tests:` và khối `arguments:` chạy được trên dbt 1.12.5, không thấy cảnh báo. `dbt test` báo `Found 6 models, 11 data tests` (4 test mẫu của `models/example/` + 7 test của mình).
+  - **Cách test hoạt động**: dbt dựng mỗi test từ một mẫu SQL có sẵn, chạy trên BigQuery; câu SQL trả về các dòng SAI; 0 dòng là PASS, từ 1 dòng là FAIL (`Got N results, configured to fail if != 0`). `N` là số dòng kết quả của test, không phải số dòng của bảng.
+  - **Giá trị thật của `department`** (kiểm bằng `GROUP BY` trước khi viết test): `Women` 15.989, `Men` 13.131, tổng 29.120 = số dòng `dim_products`, không có NULL.
+  - **Cho test fail để xem**: `values: ['Women']` (cố ý thiếu `Men`) cho `FAIL 1`, `PASS=3 ERROR=1 TOTAL=4`; sửa thành `['Women', 'Men']` thì `PASS=4`. Cuối cùng cả 7 test đều đạt.
+  - **Chọn model chạy theo test**: chọn `dim_products` thì dbt chạy luôn test `relationships` (nó đọc `dim_products`) nên số test lớn hơn dự kiến.
+  - **Chưa làm / chưa đo**: chi phí thật của các lần `dbt test` (đã bỏ cell đo); chưa thử `client.list_jobs`.
+  - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: `table_id` là tên bảng (không phải cột) và `list_rows` không dùng SQL; `df` là DataFrame trong bộ nhớ, byte lấy từ `job`; `* 1024 * 1024` đổi MB sang byte; `Got N results`; `relationships` chỉ tìm khóa của fact không có trong dimension; trần byte của dbt nằm ở `profiles.yml`.
+  - **Checklist Excel**: xong việc "Viết test (unique, not_null, relationships)"; Tuần 4 là 1/7. Tổng số việc đổi từ 61 sang 69 (lộ trình mới), nên tổng là 30/69.
 
 ## 8. Đang làm
 
-- **Tuần 3** (đang làm), 7 việc theo checklist: bật billing cho project `bq-learning-510104`; đặt budget alert (ngưỡng thấp) và quota bytes theo ngày; cài `dbt-bigquery`, khởi tạo project, cấu hình kết nối; khai báo source và viết staging model; viết mart model dùng `ref`; cài Power BI Desktop, kết nối BigQuery; tạo quan hệ giữa các bảng.
-- **Tuần 3, Ngày 5 (đã xong)**: xem mục 7. Tuần 3 còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
+- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs; viết incremental model; viết measure và DAX cơ bản; chuẩn hóa star schema trong Power BI; cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -250,6 +262,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Cột số thực (FLOAT) hiện nhiều chữ số lẻ trong Power BI** (`8.77499999478459`): sai số nhỏ của kiểu số thực, không phải lỗi; đặt hiển thị 2 chữ số thập phân và so sánh sau khi làm tròn.
 - **Card Power BI hiện `45.529K` và `1.39M`**: đã làm tròn để hiển thị; muốn so từng chữ số, đặt Display units = None.
 - **Hộp thoại đăng nhập BigQuery có hai tab**: chọn Organizational account (đăng nhập Google qua trình duyệt); Service Account Login cần file khóa JSON nên không dùng.
+- **Gõ sai tên model sau `--select` (`dim_product` thiếu `s`)**: không có lỗi đỏ. dbt chỉ in dòng vàng `[WARNING]: The selection criterion ... does not match any enabled nodes`, chạy phần còn lại và kết thúc `Completed successfully`; test của model gõ sai không chạy (`TOTAL=4` thay vì 6). Luôn đọc dòng vàng và so `TOTAL` với số test mong đợi. Lệnh `dir` tìm file SQL của test báo `File Not Found` vì test chưa chạy nên file chưa được tạo.
+- **Gõ `dbt --test select ...`**: lỗi `No such option '--test'`. Đúng là `dbt test --select ...` (lệnh không có gạch, tùy chọn có `--`).
+- **Test fail không phải lỗi SQL**: `FAIL 1` + `Got 1 result` nghĩa là SQL chạy tốt nhưng trả về dòng sai (ở đây là một giá trị `department` không có trong danh sách).
+- **`client.list_rows` trên `INFORMATION_SCHEMA.JOBS` báo `NotFound`**: đó là view hệ thống, không phải bảng lưu dữ liệu; `list_rows` gọi `get_table` trước nên không tìm ra. `list_rows` chỉ dùng cho bảng thật. SQL thì đọc được view hệ thống.
+
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -257,7 +274,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Dùng một tài khoản GitHub duy nhất (`khoatranuk-sys`).
 - Lưu mọi câu SQL tạo bảng vào thư mục SQL trong repo (hiện là `SQL/Day 2/`, bảng sandbox có thể hết hạn).
 - Không đẩy file dữ liệu lên GitHub: `data/` đã nằm trong `.gitignore` (làm xong Ngày 3).
-- Ngày 2: fact và dimension nối bằng khóa tự nhiên (`user_id`, `product_id`, `date_key`), chưa dùng surrogate key. Surrogate key và SCD Type 2 làm trên dữ liệu thật ở Tuần 4 với dbt snapshot.
+- Ngày 2: fact và dimension nối bằng khóa tự nhiên (`user_id`, `product_id`, `date_key`), chưa dùng dbt snapshot (SCD Type 2 trên dữ liệu thật) là việc tùy chọn, dùng ở Tuần 9-10 nếu dữ liệu có thay đổi theo thời gian.
 - Quy ước đặt tên bảng trong dataset `dwh`: `dim_*` và `fact_*`, số nhiều (`dim_users`, `dim_products`, `fact_order_items`).
 - Quy ước SCD Type 2 trong ghi chú: một ngày thuộc dòng nào nếu `valid_from <= ngày < valid_to`, dòng hiện tại có `valid_to = NULL` (khi lọc phải xử lý NULL riêng).
 - Doanh thu thực tế loại đơn `Cancelled` và `Returned`.
@@ -284,6 +301,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Số dòng của view dbt thay đổi theo bảng nguồn công khai; bảng `lab` và `dwh` là bản chụp cố định. Khi đối chiếu, so sánh trong cùng khoảng ngày rồi mới kết luận.
 - Tuần 3, Ngày 4: mart đọc từ staging bằng `ref` (staging đọc bảng public), kiểu `table`: số liệu đứng yên cho đến lần `dbt run` kế tiếp, nên Power BI đọc bảng này; chạy lại một model `table` là ghi đè bản chụp cũ, không giữ lịch sử. Không đối chiếu mart với `lab.fact_items_plain` (nguồn đã lệch); đối chiếu mart với staging cùng lúc. Mart dùng `left join` và kiểm tra `cost IS NULL` + so số dòng với staging, không dùng `join` thường. Tên mart trong dbt: `fct_*` và `dim_*` (khác `fact_*` ở dataset `dwh`).
 - Tuần 3, Ngày 5: Power BI đọc bảng mart `dbt_dev` bằng Import mode (không dùng DirectQuery), không nạp view `stg_*`. Quan hệ `fct_net_sales.product_id` → `dim_products.product_id`, Many to one, Single. Đối chiếu số trong Power BI với SQL chạy trên cùng bảng mart. `.pbix` để ngoài repo cho đến khi quyết định ở Tuần 5. Làm mới số liệu theo thứ tự: `dbt run` rồi Refresh Power BI.
+- Lộ trình theo `lo_trinh_BI_checklist.xlsx` (BI-only, 69 việc cho Tuần 1-10); phần AI Logistics nằm ở file riêng (`lo_trinh_AI_Logistics.xlsx`, `CONTEXT_AI_Logistics.md`). Ứng tuyển bắt đầu sau Tuần 10. Project 1 dùng thelook (dữ liệu mô phỏng, để học công cụ); Project 2 dùng dữ liệu thật (đề xuất Olist, giấy phép chưa xác nhận); Tuần 9-10 làm project mới trên bộ dữ liệu khác.
+- Tuần 4, Ngày 1: test của dbt khai báo trong file yml cạnh model (`models/marts/_marts__models.yml`). Mỗi mart có ít nhất `unique` + `not_null` trên khóa và `relationships` từ fact sang dim. Luôn `GROUP BY` xem giá trị thật trước khi viết `accepted_values`. Sau mỗi `dbt test`, đọc dòng WARNING vàng và so `TOTAL` với số test mong đợi.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -292,13 +311,15 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - BigQuery có tự dùng MV khi mình hỏi trên bảng gốc không (Cell 9 Tuần 2 chỉ quét 0,04 MB, nghi là có, chưa kiểm chứng).
 - Vì sao các query đọc `INFORMATION_SCHEMA.JOBS` bị tính billed 20 MB thay vì 10 MB (chưa hiểu).
 - Chia sẻ dashboard Data Studio ra ngoài cần quyền gì ở BigQuery (liên quan IAM), làm sau.
-- Nếu nhiều tin tuyển dụng yêu cầu Airflow/Docker thì có đưa Tuần 9-10 lên sớm không?
+- Nếu nhiều tin tuyển dụng yêu cầu Airflow/Docker thì có học sớm hơn không (hiện đang hoãn, Tuần 9-10 là Project thành thạo)?
 - Vì sao view dbt và `lab.fact_items_plain` lệch số dòng (181.466 và 180.771; chênh đổi dấu qua từng năm)? Giả thuyết là bảng nguồn công khai được cập nhật, chưa chứng minh (cần xem lại SQL tạo bảng lab ở Tuần 1).
 - Mart ở Tuần 3 Ngày 4 đọc thẳng bảng public hay đọc từ một bản chụp của mình (ổn định, đối chiếu được)?
 - (thêm câu hỏi khác tại đây)
 - `fct_net_sales` có 45.529 dòng `Complete`, còn bản `lab` là 45.282 (chênh 247). Vẫn chưa chứng minh được là do nguồn public đổi.
 - Truy vấn trên view cũng billed 10 MB (một lần đo ngày 09/10). Câu có hai bảng tham chiếu billed 20 MB (đo lại ngày 11/10: processed 0,57 MB, billed 20 MB), ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng"; mới hai lần đo.
 - Mỗi lần Refresh trong Power BI đọc bao nhiêu byte, và qua job thường hay Storage Read API (chưa đo)?
+- Chi phí thật của `dbt test` (số query và byte billed): chưa đo (ước tính vài trăm MB cả buổi ngày 13/10).
+- Xem lịch sử job bằng Python không dùng SQL (`client.list_jobs`): chưa thử.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
