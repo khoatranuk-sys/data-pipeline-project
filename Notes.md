@@ -578,3 +578,52 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Tên menu Power BI có thể khác tùy phiên bản.
 
 **Cần ôn lại đầu ngày sau:** (1) bộ lọc đi từ một sang nhiều (mình từng nói ngược); (2) `job.result()` phải đứng trước khi đọc byte, nếu không là `None`; (3) `client` là kênh kết nối, `location` phải khớp vùng dataset; (4) làm mới số: `dbt run` rồi Refresh; (5) `use_query_cache=False` không xóa cache.
+
+## Tuần 4 - Ngày 1: dbt test
+
+**Test của dbt là gì?**
+- Test khai báo trong file yml cạnh model. Mỗi test là một câu SQL dbt dựng từ mẫu có sẵn (`unique`, `not_null`, `accepted_values`, `relationships`), gửi lên BigQuery.
+- Câu SQL trả về các dòng SAI. 0 dòng là PASS, từ 1 dòng là FAIL (`Got N results, configured to fail if != 0`). `N` là số dòng kết quả của test, không phải số dòng của bảng.
+- Giống `validate_weather` ở Tuần 1 và các kiểm tra tay ở Tuần 3 (grain, join không mất dòng), nhưng chạy bằng một lệnh. Cần hiểu: test = "có dòng nào sai không?". Không cần thuộc cú pháp YAML.
+
+**7 test đã viết** (`bi_dbt/models/marts/_marts__models.yml`)
+
+| Bảng | Cột | Test | Kiểm tra gì |
+|---|---|---|---|
+| `dim_products` | `product_id` | `unique`, `not_null` | phía "một" của quan hệ hợp lệ |
+| `dim_products` | `department` | `accepted_values` (Women, Men) | không có giá trị lạ |
+| `fct_net_sales` | `order_item_id` | `unique`, `not_null` | đúng grain: 1 dòng = 1 order item |
+| `fct_net_sales` | `product_id` | `not_null`, `relationships` | mọi `product_id` của fact có trong `dim_products` |
+
+- `relationships` chỉ tìm khóa của fact không có trong dimension; không kiểm tra null hay trùng (đó là việc của test khác). Các test chạy độc lập, không theo thứ tự.
+- Nếu có lỗi này mà không phát hiện, doanh thu của các dòng đó vẫn có trong tổng nhưng `category` rỗng (thường hiện (Blank) trong Power BI).
+- Giá trị thật của `department` (kiểm bằng `GROUP BY` trước): Women 15.989, Men 13.131, tổng 29.120, không NULL.
+
+**Xem test thật là SQL gì**
+- dbt tự tạo file SQL ở `bi_dbt\target\compiled\bi_dbt\models\marts\_marts__models.yml\` (`_marts__models.yml` là một thư mục). Không viết tay, không commit (`target\` bị `.gitignore` chặn).
+- `unique`: tạo CTE chọn cột khóa (bỏ dòng null), rồi `group by` khóa với `having count(*) > 1` (liệt kê khóa trùng).
+- `accepted_values`: nhóm theo cột, rồi `where value_field not in ('Women', ...)` (liệt kê giá trị không có trong danh sách).
+
+**Cho test fail để xem**
+- `values: ['Women']` (cố ý thiếu `Men`): `FAIL 1`, `PASS=3 ERROR=1 TOTAL=4`. Đây là test fail chứ không phải lỗi SQL: SQL chạy tốt, nhưng trả về 1 dòng (giá trị lạ `Men`). Sửa thành `['Women', 'Men']` thì `PASS=4`.
+- dbt không dừng khi một test fail; các test còn lại vẫn chạy.
+
+**Lệnh và cảnh báo**
+- Lệnh đúng: `dbt test --select dim_products fct_net_sales` (`test` là lệnh, `--select` là tùy chọn). Chọn một model thì dbt chạy mọi test đụng tới model đó, kể cả `relationships` đặt ở model khác.
+- Gõ sai tên model (`dim_product`): không có lỗi đỏ, chỉ có dòng vàng `does not match any enabled nodes`; test của model đó không chạy mà cuối vẫn `Completed successfully`. Cách bắt: đọc dòng vàng và so `TOTAL` với số test mong đợi.
+
+**Chi phí**
+- Mỗi test là một query, billed tối thiểu 10 MB mỗi bảng (`relationships` đọc 2 bảng). Trần mỗi query là `maximum_bytes_billed: 1000000000` trong `profiles.yml`. Không tạo bảng. Cả buổi chưa đo (ước tính vài trăm MB).
+
+**Ôn code Python cuối ngày**
+- `rows = client.list_rows(table_id, max_results=20)`: `table_id` là chuỗi tên bảng (không phải cột); đọc thẳng dữ liệu đã lưu, không SQL nên không có job, không có bytes billed; dữ liệu về máy khi gọi `.to_dataframe()`. Trỏ vào `INFORMATION_SCHEMA.JOBS` thì `NotFound` vì đó là view hệ thống, `list_rows` gọi `get_table` trước. SQL hiểu cả view, `list_rows` chỉ đọc bảng có dữ liệu lưu sẵn.
+- `df = job.result().to_dataframe()`: `result()` chờ job xong, `.to_dataframe()` đưa kết quả vào `df` (DataFrame trong bộ nhớ notebook, không phải bảng BigQuery). Byte lấy từ `job`, và `result()` phải đứng trước khi đọc byte, nếu không là `None`.
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: tắt cache chỉ là bỏ qua cache (không xóa gì); nhân `1024 * 1024` đổi MB sang byte; vượt trần so với bytes billed thì BigQuery từ chối chạy, không tính tiền.
+
+**Điều mình chưa chắc**
+- Chi phí thật của `dbt test` (chưa đo).
+- Cách dbt đếm `Got N results` bên trong (mình đoán bọc kết quả trong một câu đếm, chưa kiểm chứng).
+- `list_rows` có đọc được view thường (như `v_net_sales`) hay không (đoán là không).
+- `client.list_jobs` trả đủ `total_bytes_billed` hay không (chưa chạy).
+
+**Cần ôn lại đầu ngày sau:** (1) `table_id` là tên bảng, `list_rows` không dùng SQL, `.to_dataframe()` mới lấy dữ liệu; (2) `df` nằm trong bộ nhớ, byte lấy từ `job` sau `result()`; (3) số trong `Got N results` là số dòng kết quả test; (4) `relationships` chỉ tìm khóa fact không có trong dimension, các test độc lập; (5) `* 1024 * 1024` đổi MB sang byte, trần byte của dbt nằm ở `profiles.yml`; (6) dòng WARNING vàng và `TOTAL`; (7) `for _, row in df.iterrows()` (hai tên biến) từ các tuần trước.
