@@ -1,0 +1,30 @@
+# Mục đích: khai báo test tự động cho 2 bảng mart.
+# Mỗi test là một câu SQL do dbt tự viết; test ĐẠT khi câu SQL đó trả về 0 dòng.
+version: 2
+
+models:
+  - name: dim_products              # tên model (file dim_products.sql)
+    columns:
+      - name: product_id
+        data_tests:
+          - unique                  # mỗi product_id chỉ xuất hiện 1 lần (phía "một" của quan hệ)
+          - not_null                # không có product_id rỗng
+      - name: department            # MỚI: kiểm tra giá trị cột department
+        data_tests:
+          - accepted_values:        # chỉ cho phép các giá trị nằm trong danh sách
+              arguments:
+                values: ['Women', 'Men']   # đủ 2 giá trị thật (đã GROUP BY kiểm tra)
+
+  - name: fct_net_sales
+    columns:
+      - name: order_item_id
+        data_tests:
+          - unique                  # kiểm tra grain: 1 dòng = 1 order item
+          - not_null
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:          # mọi product_id của fact phải có trong dim_products
+              arguments:
+                to: ref('dim_products')
+                field: product_id
