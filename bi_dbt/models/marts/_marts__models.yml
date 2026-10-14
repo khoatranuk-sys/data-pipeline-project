@@ -1,30 +1,68 @@
 # Mục đích: khai báo test tự động cho 2 bảng mart.
 # Mỗi test là một câu SQL do dbt tự viết; test ĐẠT khi câu SQL đó trả về 0 dòng.
+# Mục đích: giữ 7 test của Ngày 1 và thêm description cho 2 mart để dbt docs hiển thị.
+# Lưu ý: dùng dấu cách để thụt dòng (không dùng Tab); mô tả đặt trong ngoặc kép vì có dấu hai chấm.
+
+
+#models:                      # tầng 1: danh sách bảng (model)
+#  - name: dim_products       #   tên bảng: phải trùng tên file .sql
+#    description: "..."       #   mô tả cả bảng (1 dòng là gì)
+#    columns:                 # tầng 2: danh sách cột của bảng này
+#      - name: product_id     #   tên cột: phải trùng tên cột trong SQL
+#        description: "..."   #   mô tả cột
+#        data_tests:          # tầng 3: test gắn vào cột (của Ngày 1)
+#          - unique
+
 version: 2
 
 models:
-  - name: dim_products              # tên model (file dim_products.sql)
+  - name: dim_products
+    description: "Dimension sản phẩm. Grain: 1 dòng = 1 sản phẩm. Nguồn: thelook_ecommerce.products, qua stg_thelook__products."
     columns:
       - name: product_id
+        description: "Khóa chính của sản phẩm. Duy nhất, không NULL."
         data_tests:
-          - unique                  # mỗi product_id chỉ xuất hiện 1 lần (phía "một" của quan hệ)
-          - not_null                # không có product_id rỗng
-      - name: department            # MỚI: kiểm tra giá trị cột department
+          - unique
+          - not_null
+      - name: product_name
+        description: "Tên sản phẩm."
+      - name: category
+        description: "Danh mục sản phẩm, dùng để nhóm báo cáo."
+      - name: brand
+        description: "Thương hiệu."
+      - name: department
+        description: "Bộ phận bán hàng. Chỉ có hai giá trị: Women, Men."
         data_tests:
-          - accepted_values:        # chỉ cho phép các giá trị nằm trong danh sách
+          - accepted_values:
               arguments:
-                values: ['Women', 'Men']   # đủ 2 giá trị thật (đã GROUP BY kiểm tra)
+                values: ['Women', 'Men']
+      
 
   - name: fct_net_sales
+    description: "Fact doanh thu thực tế. Grain: 1 mặt hàng trong 1 đơn. Quy tắc: chỉ tính đơn có status = 'Complete'."
     columns:
       - name: order_item_id
+        description: "Khóa chính: mã mặt hàng trong đơn. Duy nhất, không NULL."
         data_tests:
-          - unique                  # kiểm tra grain: 1 dòng = 1 order item
+          - unique
           - not_null
+      - name: order_id
+        description: "Mã đơn hàng. Một đơn có thể có nhiều dòng."
+      - name: user_id
+        description: "Mã khách hàng."
       - name: product_id
+        description: "Khóa ngoại sang dim_products.product_id."
         data_tests:
           - not_null
-          - relationships:          # mọi product_id của fact phải có trong dim_products
+          - relationships:
               arguments:
                 to: ref('dim_products')
                 field: product_id
+      - name: order_date
+        description: "Ngày đặt hàng (date của created_at)."
+      - name: sale_price
+        description: "Giá bán của mặt hàng. Tổng cột này là doanh thu."
+      - name: cost
+        description: "Giá vốn của mặt hàng."
+      - name: gross_profit
+        description: "Lợi nhuận gộp = sale_price - cost."
