@@ -627,3 +627,34 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - `client.list_jobs` trả đủ `total_bytes_billed` hay không (chưa chạy).
 
 **Cần ôn lại đầu ngày sau:** (1) `table_id` là tên bảng, `list_rows` không dùng SQL, `.to_dataframe()` mới lấy dữ liệu; (2) `df` nằm trong bộ nhớ, byte lấy từ `job` sau `result()`; (3) số trong `Got N results` là số dòng kết quả test; (4) `relationships` chỉ tìm khóa fact không có trong dimension, các test độc lập; (5) `* 1024 * 1024` đổi MB sang byte, trần byte của dbt nằm ở `profiles.yml`; (6) dòng WARNING vàng và `TOTAL`; (7) `for _, row in df.iterrows()` (hai tên biến) từ các tuần trước.
+
+## Tuần 4 - Ngày 2: dbt docs
+
+**Ý chính (4 ý cần nhớ)**
+- `description` trong yml là ghi chú cho người đọc, đặt cạnh code (giống data dictionary): bảng là gì, 1 dòng là gì (grain), cột nghĩa là gì, quy tắc đã áp dụng. Khác với `data_tests` (kiểm tra dữ liệu, chạy bằng `dbt test`).
+- `dbt docs generate` có hai pha: đọc file SQL và yml trên máy (ra `manifest.json`) rồi hỏi BigQuery lấy kiểu cột và số dòng (dòng `Building catalog`, ra `catalog.json`). Pha hai gửi query và tốn byte.
+- `dbt docs serve` chỉ mở trang web trên máy từ các file đã tạo, không gọi BigQuery, miễn phí.
+- Lineage do dbt tự dựng từ `source()` và `ref()` trong file SQL; yml khai báo source ở đâu và mô tả. `ref()` trong yml (như `relationships`) chỉ nối cái test với các bảng nó kiểm tra.
+
+**Khung yml 3 tầng**
+- `models` → `columns` → `data_tests`; mỗi tầng có `name`. Tên trong yml phải khớp tên file `.sql` và tên cột trong SQL (cột khai báo thừa không báo lỗi). Thụt lề bằng dấu cách quyết định cái nào nằm trong cái nào. Cần hiểu cấu trúc, không cần thuộc cú pháp.
+
+**Đã thấy trên trang docs**
+- `dim_products` có đúng 5 cột; kiểu dữ liệu lấy từ BigQuery (`INT64` là `INTEGER`), mô tả lấy từ yml. Cột Description trong BigQuery vẫn là `-`.
+- Source (xanh lá) → staging (xanh dương) → mart; node đang chọn màu tím. `models/example/` hiện thành nhóm riêng và chưa chạy bao giờ. `orders` và `users` có trong cây Sources nhưng không có mũi tên.
+
+**Chi phí của dbt** (đo bằng `INFORMATION_SCHEMA.JOBS`, nhận ra query dbt nhờ chú thích `/* {"app": "dbt"`)
+- `dbt test` ngày 13/10: 15 query, 90 MB billed; query chạy lại giống hệt thì lấy từ cache (0 MB); đổi `accepted_values` thì ra query mới (10 MB).
+- `dbt docs generate`: 2 query catalog (mỗi dataset một query), mỗi query đọc 5 bảng hệ thống, processed 40 MB, billed 50 MB (5 bảng × 10 MB tối thiểu), tổng 100 MB mỗi lần, lần chạy thứ hai không có cache. `dbt compile` và `dbt docs serve` không gửi query.
+- Byte phụ thuộc cột được đọc, không phụ thuộc gom nhóm: `SELECT product_id, cost` và `SELECT COUNT(product_id), SUM(cost)` đều processed 0,69 MB; chỉ một cột thì 0,35 MB (45.529 dòng × 8 byte). Thời gian trên bảng nhỏ chủ yếu là độ trễ cố định (job 0,15 đến 0,26 giây nhưng cả query mất khoảng 3 giây).
+
+**Ôn code Python cuối ngày**
+- `QueryJobConfig(dry_run=True, use_query_cache=False)` rồi `for field in job.schema: print(field.name, field.field_type)`: dry run không đọc dữ liệu, chỉ kiểm tra SQL, ước lượng byte và trả về cấu trúc nên miễn phí; vòng `for` gán từng cột của `job.schema` vào `field`.
+- `for _, row in df.iterrows():`: `iterrows()` trả một cặp (số thứ tự, dòng); `_` bỏ số thứ tự, `row` giữ dòng; `row["billed_mb"]` là số MB (không phải byte).
+- `df = job.result().to_dataframe()`: `client.query()` trả `job` ngay, `job.result()` mới chờ xong; byte lấy từ `job` sau `result()`, không từ `df`.
+
+**Điều mình chưa chắc**
+- Bảng hệ thống thứ 5 mà `docs generate` đọc là bảng nào; vì sao query catalog không dùng cache.
+- Lineage có vẽ node test không (hiện không thấy); `persist_docs` hoạt động thế nào.
+
+**Cần ôn lại đầu ngày sau:** (1) `generate` hỏi BigQuery (tốn byte), `serve` chỉ mở file (miễn phí); (2) mũi tên lineage từ `source()` và `ref()` trong SQL, yml khai báo và mô tả; (3) `dry_run` không đọc dữ liệu, chỉ kiểm tra và ước lượng; (4) `iterrows()` trả cặp (số thứ tự, dòng), `_` bỏ số thứ tự; (5) `client.query()` không chờ, `job.result()` mới chờ; (6) khung yml 3 tầng và tên trong yml phải khớp SQL.

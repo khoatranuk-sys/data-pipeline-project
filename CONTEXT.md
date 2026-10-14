@@ -42,6 +42,7 @@
 - Cấu trúc dbt (từ Tuần 3 Ngày 4): thêm `bi_dbt/models/staging/thelook/stg_thelook__products.sql` (view) và thư mục `bi_dbt/models/marts/` chứa `dim_products.sql`, `fct_net_sales.sql` (cả hai `materialized='table'`, đặt bằng `{{ config(...) }}` trong từng file). Lệnh dùng: `dbt run --select fct_net_sales dim_products stg_thelook__products` (dbt tự xếp thứ tự theo `ref`). Bản dịch SQL nằm ở `bi_dbt\target\compiled\...`, bản chạy thật ở `target\run\...`; `target\` và `logs\` do dbt tự tạo, bị `.gitignore` chặn, không commit. File trong `models/` không bao giờ bị `dbt compile` sửa.
 - Power BI (từ Tuần 3 Ngày 5): Power BI Desktop (Windows), connector Google BigQuery, Import mode, Billing Project ID `bq-learning-510104`. Đăng nhập ở tab Organizational account bằng tài khoản Google của GCP (tab Service Account Login cần file khóa JSON nên không dùng). Chỉ nạp `dbt_dev.dim_products` và `dbt_dev.fct_net_sales`, không nạp các view `stg_*`. File `.pbix` lưu ngoài repo (ví dụ `D:\BI\powerbi\`), chưa commit.
 - Cấu trúc dbt (từ Tuần 4 Ngày 1): thêm `bi_dbt/models/marts/_marts__models.yml` (khai báo test cho `dim_products` và `fct_net_sales`, có commit). Lệnh dùng: `dbt test --select dim_products fct_net_sales` (`test` là lệnh, `--select` là tùy chọn; dbt chạy mọi test có đụng tới model được chọn, kể cả test `relationships` đặt ở model khác). SQL của từng test nằm ở `bi_dbt\target\compiled\bi_dbt\models\marts\_marts__models.yml\` (tên thư mục là `_marts__models.yml`, do dbt tự tạo, không commit). Notebook tuần 4: `Python/Week 4/Day1.ipynb` (sửa lại nếu bạn đặt tên khác).
+- Cấu trúc dbt (từ Tuần 4 Ngày 2): thêm `description` vào `bi_dbt/models/marts/_marts__models.yml` (2 mart và các cột) và vào `bi_dbt/models/staging/thelook/_thelook__sources.yml` (source `thelook` và 4 bảng). Lệnh dùng (Anaconda Prompt, env `bi`, đang ở thư mục `bi_dbt`): `dbt docs generate` (sinh `target\manifest.json` và `target\catalog.json`) và `dbt docs serve` (mở `http://localhost:8080`, dừng bằng `Ctrl+C`). Lệnh dbt phải chạy trong `bi_dbt`, đứng ở thư mục gốc repo thì báo `No dbt_project.yml found`. Notebook: `Python/Week 4/Day2.ipynb`.
 
 ## 5. Chi phí và an toàn
 
@@ -59,6 +60,7 @@
 - API key (nếu có, API thật của khách): không viết thẳng vào code vì repo công khai; đã học ở Ngày 4: để khóa trong `.env` (đã bị `.gitignore` chặn), đọc bằng `python-dotenv`, chỉ commit `.env.example`.
 - Power BI không dùng `maximum_bytes_billed`; cầu chì hiện là kích thước bảng nhỏ. Import mode chỉ tốn byte lúc Load/Refresh (mỗi bảng có thể bị tính tối thiểu 10 MB); lọc và bấm biểu đồ sau khi đã Load không tốn byte. Không Publish, không đặt scheduled refresh khi chưa hiểu phần chia sẻ.
 - dbt test (từ Tuần 4 Ngày 1): mỗi test là một query gửi lên BigQuery, billed tối thiểu 10 MB mỗi bảng được đọc (`relationships` đọc 2 bảng); mỗi query bị chặn bởi `maximum_bytes_billed: 1000000000` trong `profiles.yml`. Chạy test không tạo bảng. Chi phí cả buổi chưa đo (ước tính vài trăm MB, dưới 0,01 USD).
+- Chi phí thật của dbt (đo ngày 14/10/2026 bằng `INFORMATION_SCHEMA.JOBS`, nhận ra query dbt nhờ chú thích `/* {"app": "dbt"` ở đầu query): `dbt test` ngày 13/10 gồm 15 query, tổng 90 MB billed (query chạy lại giống hệt thì lấy từ cache, billed 0). `dbt docs generate` gửi 2 query catalog (mỗi dataset một query, mỗi query đọc 5 bảng hệ thống, processed 40 MB, billed 50 MB), tổng 100 MB mỗi lần và không dùng cache; chạy 2 lần trong ngày 14/10. `dbt docs serve` không gọi BigQuery. `dbt compile` không gửi query. Chỉ chạy `docs generate` khi mô tả hoặc cấu trúc đã đổi.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -201,9 +203,18 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: `table_id` là tên bảng (không phải cột) và `list_rows` không dùng SQL; `df` là DataFrame trong bộ nhớ, byte lấy từ `job`; `* 1024 * 1024` đổi MB sang byte; `Got N results`; `relationships` chỉ tìm khóa của fact không có trong dimension; trần byte của dbt nằm ở `profiles.yml`.
   - **Checklist Excel**: xong việc "Viết test (unique, not_null, relationships)"; Tuần 4 là 1/7. Tổng số việc đổi từ 61 sang 69 (lộ trình mới), nên tổng là 30/69.
 
+- **Tuần 4, Ngày 2**: dbt docs.
+  - **Mô tả**: thêm `description` cho 2 mart (kèm grain và quy tắc `status = 'Complete'`), các cột và source `thelook` (4 bảng). `dim_products` có đúng 5 cột (`product_id`, `product_name`, `category`, `brand`, `department`), không có `cost` và `retail_price`. 7 test giữ nguyên (`dbt compile` báo `Found 6 models, 11 data tests, 4 sources`).
+  - **Docs**: `dbt docs generate` đọc file dự án (miễn phí) rồi hỏi BigQuery lấy kiểu cột và số dòng; `dbt docs serve` chỉ mở file đã tạo. Trang docs: mô tả lấy từ yml, kiểu dữ liệu và số dòng lấy từ BigQuery (`INT64` là `INTEGER`); cột Description trong BigQuery vẫn là `-` (mô tả chỉ nằm trong dbt docs).
+  - **Lineage**: mũi tên đến từ `source()` và `ref()` trong file SQL; yml khai báo và mô tả. `ref()` trong yml (như `relationships`) chỉ nối cái test với các bảng nó kiểm tra. Source `orders` và `users` đã khai báo nhưng chưa model nào dùng nên không có mũi tên. `models/example/` (2 model mẫu) cũng hiện thành một nhóm riêng.
+  - **Đo chi phí**: xem mục 5.
+  - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: `generate` hỏi BigQuery còn `serve` thì không; mũi tên lineage từ `source()` và `ref()` trong SQL; `dry_run` không đọc dữ liệu; `iterrows()` trả một cặp (số thứ tự, dòng).
+  - **Ghi chú**: bạn tự đánh giá chỉ nắm khoảng 40% bài vì nhiều phần đào sâu đo chi phí; từ nay câu hỏi lệch mục đích ngày ghi vào mục 11 rồi làm sau.
+  - **Checklist Excel**: tick "Viết test" (Ngày 1) và "Sinh tài liệu dbt docs"; Tuần 4 là 2/7, tổng 31/69.
+
 ## 8. Đang làm
 
-- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs; viết incremental model; viết measure và DAX cơ bản; chuẩn hóa star schema trong Power BI; cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2);; viết incremental model; viết measure và DAX cơ bản; chuẩn hóa star schema trong Power BI; cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -266,6 +277,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Gõ `dbt --test select ...`**: lỗi `No such option '--test'`. Đúng là `dbt test --select ...` (lệnh không có gạch, tùy chọn có `--`).
 - **Test fail không phải lỗi SQL**: `FAIL 1` + `Got 1 result` nghĩa là SQL chạy tốt nhưng trả về dòng sai (ở đây là một giá trị `department` không có trong danh sách).
 - **`client.list_rows` trên `INFORMATION_SCHEMA.JOBS` báo `NotFound`**: đó là view hệ thống, không phải bảng lưu dữ liệu; `list_rows` gọi `get_table` trước nên không tìm ra. `list_rows` chỉ dùng cho bảng thật. SQL thì đọc được view hệ thống.
+- **`No dbt_project.yml found at expected path ...\data-pipeline-project\dbt_project.yml`**: đang đứng ở thư mục gốc repo. `dbt_project.yml` nằm trong `bi_dbt\`; chạy `cd bi_dbt` rồi gõ lại lệnh dbt.
+- **Cột khai báo trong yml nhưng không có trong file SQL** (ví dụ `cost` và `retail_price` ở `dim_products`): theo mình biết, dbt không báo lỗi. Luôn đối chiếu danh sách cột yml với file SQL.
+- **Cảnh báo vàng `RuntimeWarning: "table_owner" does not match the name of any column`** khi `dbt docs generate`: cảnh báo của thư viện `agate`, catalog vẫn ghi xong, bỏ qua được (nguyên nhân chưa kiểm chứng).
+- **Các dòng `404 File not found` (getIcon, favicon.ico) khi `dbt docs serve`**: lỗi biểu tượng của giao diện web, không ảnh hưởng nội dung.
+- **`Ctrl+C` không dừng được `dbt docs serve`**: thử `Esc` rồi `Ctrl+C` lại, hoặc `Ctrl+Break`, hoặc đóng cửa sổ Anaconda Prompt (an toàn, chỉ phục vụ file tĩnh).
 
 
 ## 10. Quyết định đã chốt
@@ -303,6 +319,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 3, Ngày 5: Power BI đọc bảng mart `dbt_dev` bằng Import mode (không dùng DirectQuery), không nạp view `stg_*`. Quan hệ `fct_net_sales.product_id` → `dim_products.product_id`, Many to one, Single. Đối chiếu số trong Power BI với SQL chạy trên cùng bảng mart. `.pbix` để ngoài repo cho đến khi quyết định ở Tuần 5. Làm mới số liệu theo thứ tự: `dbt run` rồi Refresh Power BI.
 - Lộ trình theo `lo_trinh_BI_checklist.xlsx` (BI-only, 69 việc cho Tuần 1-10); phần AI Logistics nằm ở file riêng (`lo_trinh_AI_Logistics.xlsx`, `CONTEXT_AI_Logistics.md`). Ứng tuyển bắt đầu sau Tuần 10. Project 1 dùng thelook (dữ liệu mô phỏng, để học công cụ); Project 2 dùng dữ liệu thật (đề xuất Olist, giấy phép chưa xác nhận); Tuần 9-10 làm project mới trên bộ dữ liệu khác.
 - Tuần 4, Ngày 1: test của dbt khai báo trong file yml cạnh model (`models/marts/_marts__models.yml`). Mỗi mart có ít nhất `unique` + `not_null` trên khóa và `relationships` từ fact sang dim. Luôn `GROUP BY` xem giá trị thật trước khi viết `accepted_values`. Sau mỗi `dbt test`, đọc dòng WARNING vàng và so `TOTAL` với số test mong đợi.
+- Tuần 4, Ngày 2: mỗi mart và source có `description` ngay trong yml (mô tả bảng nói rõ grain và quy tắc nghiệp vụ). Chỉ chạy `dbt docs generate` khi mô tả hoặc cấu trúc đổi (tốn khoảng 100 MB mỗi lần); xem lại tài liệu thì dùng `dbt docs serve` (miễn phí). Mọi lệnh dbt chạy trong `bi_dbt`. Câu hỏi lệch mục đích của ngày ghi vào mục 11 và làm sau khi xong phần chính.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -318,8 +335,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - `fct_net_sales` có 45.529 dòng `Complete`, còn bản `lab` là 45.282 (chênh 247). Vẫn chưa chứng minh được là do nguồn public đổi.
 - Truy vấn trên view cũng billed 10 MB (một lần đo ngày 09/10). Câu có hai bảng tham chiếu billed 20 MB (đo lại ngày 11/10: processed 0,57 MB, billed 20 MB), ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng"; mới hai lần đo.
 - Mỗi lần Refresh trong Power BI đọc bao nhiêu byte, và qua job thường hay Storage Read API (chưa đo)?
-- Chi phí thật của `dbt test` (số query và byte billed): chưa đo (ước tính vài trăm MB cả buổi ngày 13/10).
 - Xem lịch sử job bằng Python không dùng SQL (`client.list_jobs`): chưa thử.
+- Bảng hệ thống thứ 5 mà `dbt docs generate` đọc (Cell 5 chỉ nhận ra `MATERIALIZED_VIEWS`, `TABLE_OPTIONS`, `COLUMNS`, `COLUMN_FIELD_PATHS`) là bảng nào? Cell 6 (`UNNEST(referenced_tables)`) để xem; chưa kiểm chứng.
+- Vì sao query catalog của `docs generate` không lấy từ cache (giả thuyết: query đọc `INFORMATION_SCHEMA` không được cache)? Chưa kiểm chứng.
+- Lineage mặc định không vẽ node test (giả thuyết, chưa kiểm chứng trên dbt 1.12.5).
+- `persist_docs` có đẩy mô tả yml sang cột Description của BigQuery không, và hoạt động thế nào với bảng `table`? Chưa thử.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
