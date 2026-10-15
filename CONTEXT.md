@@ -1,6 +1,6 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 13/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
+> Cập nhật lần cuối: 15/10/2026. Cuối mỗi ngày học, sửa mục "Đã hoàn thành", "Đang làm" và "Lỗi đã gặp" rồi commit.
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
@@ -43,6 +43,7 @@
 - Power BI (từ Tuần 3 Ngày 5): Power BI Desktop (Windows), connector Google BigQuery, Import mode, Billing Project ID `bq-learning-510104`. Đăng nhập ở tab Organizational account bằng tài khoản Google của GCP (tab Service Account Login cần file khóa JSON nên không dùng). Chỉ nạp `dbt_dev.dim_products` và `dbt_dev.fct_net_sales`, không nạp các view `stg_*`. File `.pbix` lưu ngoài repo (ví dụ `D:\BI\powerbi\`), chưa commit.
 - Cấu trúc dbt (từ Tuần 4 Ngày 1): thêm `bi_dbt/models/marts/_marts__models.yml` (khai báo test cho `dim_products` và `fct_net_sales`, có commit). Lệnh dùng: `dbt test --select dim_products fct_net_sales` (`test` là lệnh, `--select` là tùy chọn; dbt chạy mọi test có đụng tới model được chọn, kể cả test `relationships` đặt ở model khác). SQL của từng test nằm ở `bi_dbt\target\compiled\bi_dbt\models\marts\_marts__models.yml\` (tên thư mục là `_marts__models.yml`, do dbt tự tạo, không commit). Notebook tuần 4: `Python/Week 4/Day1.ipynb` (sửa lại nếu bạn đặt tên khác).
 - Cấu trúc dbt (từ Tuần 4 Ngày 2): thêm `description` vào `bi_dbt/models/marts/_marts__models.yml` (2 mart và các cột) và vào `bi_dbt/models/staging/thelook/_thelook__sources.yml` (source `thelook` và 4 bảng). Lệnh dùng (Anaconda Prompt, env `bi`, đang ở thư mục `bi_dbt`): `dbt docs generate` (sinh `target\manifest.json` và `target\catalog.json`) và `dbt docs serve` (mở `http://localhost:8080`, dừng bằng `Ctrl+C`). Lệnh dbt phải chạy trong `bi_dbt`, đứng ở thư mục gốc repo thì báo `No dbt_project.yml found`. Notebook: `Python/Week 4/Day2.ipynb`.
+- Cấu trúc dbt (từ Tuần 4 Ngày 3): thêm `bi_dbt/models/marts/fct_net_sales_inc.sql` (`materialized='incremental'`, `unique_key='order_item_id'`, `incremental_strategy='merge'`, lọc `status = 'Complete'` và từ lần chạy thứ hai chỉ lấy `order_date >= max(order_date) trong bảng - 3 ngày`) và 4 test mới cho model này trong `_marts__models.yml` (`order_item_id`: `unique`, `not_null`; `product_id`: `not_null`, `relationships`). Lệnh dùng: `dbt run --select fct_net_sales_inc` (lần đầu `CREATE TABLE`, các lần sau `MERGE`; không dùng `--full-refresh` trừ khi muốn dựng lại cả bảng) và `dbt test --select fct_net_sales_inc`. Không comment `--` có dấu ngoặc nhọn trong file SQL vì Jinja vẫn xử lý. Notebook: `Python/Week 4/Day3.ipynb` (sửa lại nếu bạn đặt tên khác).
 
 ## 5. Chi phí và an toàn
 
@@ -211,10 +212,18 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: `generate` hỏi BigQuery còn `serve` thì không; mũi tên lineage từ `source()` và `ref()` trong SQL; `dry_run` không đọc dữ liệu; `iterrows()` trả một cặp (số thứ tự, dòng).
   - **Ghi chú**: bạn tự đánh giá chỉ nắm khoảng 40% bài vì nhiều phần đào sâu đo chi phí; từ nay câu hỏi lệch mục đích ngày ghi vào mục 11 rồi làm sau.
   - **Checklist Excel**: tick "Viết test" (Ngày 1) và "Sinh tài liệu dbt docs"; Tuần 4 là 2/7, tổng 31/69.
+  - **Tuần 4, Ngày 3**: incremental model.
+  - **Model**: `fct_net_sales_inc` (cùng grain và cột với `fct_net_sales`, giữ nguyên `fct_net_sales` vì Power BI đang đọc). Lần đầu `CREATE TABLE` 45,3 nghìn dòng (10,5 MiB processed, 9,80 giây); lần hai `MERGE` 454 dòng (13,3 MiB processed, 4,39 giây). Bảng nhỏ nên incremental không rẻ hơn.
+  - **Cơ chế**: dbt chỉ thêm điều kiện lọc rồi `MERGE` theo `unique_key`; không tự tìm dòng thay đổi. 454 là kích thước cửa sổ 3 ngày, tổng bảng không tăng (45.271 trước và sau).
+  - **Nguồn công khai đổi mạnh**: `inc` 45.271 dòng khớp nguồn hiện tại; `fct_net_sales` (bản chụp 09/10) 45.529. Có 34.191 id chỉ ở bản cũ (trạng thái hiện tại: Shipped 13.871, Processing 8.871, Cancelled 6.770, Returned 4.576, không còn 103) và 33.933 id chỉ ở bản mới. Sau `MERGE`: thiếu 0, thừa 0 (chỉ đúng tại lúc chạy).
+  - **Test**: `dbt test --select fct_net_sales_inc` `PASS=4 TOTAL=4`, `Found 7 models, 15 data tests, 4 sources`. Test không so với nguồn nên không bắt được đơn đổi sang `Returned` còn nằm lại trong bảng `inc`.
+  - **Chi phí**: billed 30 MB cho truy vấn đọc 3 bảng, 20 MB cho 2 bảng; ủng hộ giả thuyết mức tối thiểu 10 MB tính theo từng bảng khác nhau. `dbt test` hôm nay chưa đo.
+  - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: incremental không tự biết dòng nào đổi; cửa sổ là `max - 3 ngày`; 4 test không bắt được dòng đổi trạng thái; `client.query()` không chờ, `job.result()` mới chờ; `iterrows()` trả cặp.
+  - **Checklist Excel**: xong việc "Viết incremental model"; Tuần 4 là 3/7, tổng 32/69.
 
 ## 8. Đang làm
 
-- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2);; viết incremental model; viết measure và DAX cơ bản; chuẩn hóa star schema trong Power BI; cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2); viết incremental model (xong Ngày 3); viết measure và DAX cơ bản; chuẩn hóa star schema trong Power BI; cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -282,6 +291,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Cảnh báo vàng `RuntimeWarning: "table_owner" does not match the name of any column`** khi `dbt docs generate`: cảnh báo của thư viện `agate`, catalog vẫn ghi xong, bỏ qua được (nguyên nhân chưa kiểm chứng).
 - **Các dòng `404 File not found` (getIcon, favicon.ico) khi `dbt docs serve`**: lỗi biểu tượng của giao diện web, không ảnh hưởng nội dung.
 - **`Ctrl+C` không dừng được `dbt docs serve`**: thử `Esc` rồi `Ctrl+C` lại, hoặc `Ctrl+Break`, hoặc đóng cửa sổ Anaconda Prompt (an toàn, chỉ phục vụ file tĩnh).
+- **`AttributeError: Property maximum_byte_billed is unknown`**: gõ thiếu chữ `s`, tên đúng là `maximum_bytes_billed`. Lỗi nổ lúc tạo cấu hình, trước khi query được gửi nên không tốn tiền. Sửa trong Cell 1 rồi chạy lại Cell 1 trước, sau đó mới chạy lại cell dùng hàm.
+- **`'name' is a required property` / `Custom key 'Name'` khi `dbt compile`**: khóa yml viết hoa chữ `N` (`- Name:`); YAML phân biệt hoa thường. Đọc tên khóa trong dòng cảnh báo rồi so với các khối đã chạy tốt. Sau khi sửa, `Found` đủ 15 data tests.
 
 
 ## 10. Quyết định đã chốt
@@ -320,6 +331,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Lộ trình theo `lo_trinh_BI_checklist.xlsx` (BI-only, 69 việc cho Tuần 1-10); phần AI Logistics nằm ở file riêng (`lo_trinh_AI_Logistics.xlsx`, `CONTEXT_AI_Logistics.md`). Ứng tuyển bắt đầu sau Tuần 10. Project 1 dùng thelook (dữ liệu mô phỏng, để học công cụ); Project 2 dùng dữ liệu thật (đề xuất Olist, giấy phép chưa xác nhận); Tuần 9-10 làm project mới trên bộ dữ liệu khác.
 - Tuần 4, Ngày 1: test của dbt khai báo trong file yml cạnh model (`models/marts/_marts__models.yml`). Mỗi mart có ít nhất `unique` + `not_null` trên khóa và `relationships` từ fact sang dim. Luôn `GROUP BY` xem giá trị thật trước khi viết `accepted_values`. Sau mỗi `dbt test`, đọc dòng WARNING vàng và so `TOTAL` với số test mong đợi.
 - Tuần 4, Ngày 2: mỗi mart và source có `description` ngay trong yml (mô tả bảng nói rõ grain và quy tắc nghiệp vụ). Chỉ chạy `dbt docs generate` khi mô tả hoặc cấu trúc đổi (tốn khoảng 100 MB mỗi lần); xem lại tài liệu thì dùng `dbt docs serve` (miễn phí). Mọi lệnh dbt chạy trong `bi_dbt`. Câu hỏi lệch mục đích của ngày ghi vào mục 11 và làm sau khi xong phần chính.
+- Tuần 4, Ngày 3: chỉ dùng `incremental` khi nguồn chỉ thêm dòng hoặc có cột `updated_at` đáng tin; nguồn sửa dòng cũ mà không biết dòng nào thì giữ `table`. Model incremental luôn đi kèm `unique_key` và đối chiếu với nguồn (thiếu, thừa) trước khi tin; không coi `dbt test` là đối chiếu nguồn. Mart incremental mới đặt tên `fct_*_inc`, không thay `fct_net_sales` mà Power BI đang đọc.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -354,7 +366,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Đầu mỗi ngày mới: nói rõ mục đích của ngày đó.
 - Cuối mỗi ngày: ôn code Python bằng 5-6 dòng quan trọng nhất của ngày. Hỏi từng câu một (mình trả lời bằng lời, rồi mới nhận xét, rồi mới sang câu sau), ghi mục đích của từng câu; trộn lại vài dòng cũ (nhất là dòng trả lời sai) vào ngày sau; không thêm phần dịch SQL sang pandas.
 - Sau mỗi ngày học, soạn sẵn nội dung cập nhật `CONTEXT.md` và `Notes.md` cho mình (không chỉ liệt kê việc cần làm).
-
+- `max(order_date)` trong `fct_net_sales_inc` tụt từ 2026-10-18 xuống 2026-10-16 sau `MERGE` (đoán là có dòng ghi đè với `order_date` mới), và trong 454 dòng có bao nhiêu dòng thật sự khác? Chưa kiểm chứng.
+- `MERGE` processed nhiều hơn `CREATE TABLE` (13,3 so với 10,5 MiB): có phải vì đọc thêm bảng đích? Staging view có bị quét hết dù có lọc ngày không? Chưa kiểm chứng.
+- Bảng `order_items` có `shipped_at`, `delivered_at`, `returned_at` để làm cột mốc lọc incremental không (staging hiện không chọn các cột đó)? Chưa kiểm tra.
+- Làm sao xóa khỏi bảng incremental các dòng không còn khớp điều kiện ở nguồn (đơn Complete sang Returned)? Chưa thử.
+- Thí nghiệm xóa 2 ngày cuối của `fct_net_sales_inc` rồi `dbt run` để thấy `MERGE` thêm dòng mới: chưa làm.
 
 
 

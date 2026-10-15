@@ -658,3 +658,43 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Lineage có vẽ node test không (hiện không thấy); `persist_docs` hoạt động thế nào.
 
 **Cần ôn lại đầu ngày sau:** (1) `generate` hỏi BigQuery (tốn byte), `serve` chỉ mở file (miễn phí); (2) mũi tên lineage từ `source()` và `ref()` trong SQL, yml khai báo và mô tả; (3) `dry_run` không đọc dữ liệu, chỉ kiểm tra và ước lượng; (4) `iterrows()` trả cặp (số thứ tự, dòng), `_` bỏ số thứ tự; (5) `client.query()` không chờ, `job.result()` mới chờ; (6) khung yml 3 tầng và tên trong yml phải khớp SQL.
+
+## Tuần 4 - Ngày 3: incremental model
+
+**Ý chính (4 ý cần nhớ)**
+- Incremental không tự tìm "dữ liệu thay đổi". dbt chỉ thêm một điều kiện lọc vào SQL (`is_incremental()`), lấy các dòng thỏa điều kiện, rồi `MERGE` vào bảng đích theo `unique_key`: `order_item_id` đã có thì ghi đè, chưa có thì thêm. Lần đầu bảng chưa tồn tại nên không có điều kiện lọc và dbt tạo đủ bảng.
+- Điều kiện của mình: `order_date >= max(order_date) trong bảng - 3 ngày`. Cửa sổ lùi làm dbt lấy lại cả dòng đã có, nên số dòng `MERGE` (454) là kích thước cửa sổ, không phải số dòng đã đổi; tổng bảng không tăng (45.271 trước và sau).
+- Với bảng nhỏ incremental không rẻ hơn: lần `CREATE TABLE` processed 10,5 MiB, lần `MERGE` 13,3 MiB (mình đoán vì `MERGE` còn đọc bảng đích, chưa kiểm chứng). Giá trị hôm nay là cơ chế, không phải tiết kiệm tiền.
+- Rủi ro sai âm thầm: `MERGE` không xóa dòng, và câu SQL lọc `status = 'Complete'` nên đơn đã đổi sang `Returned` không được chọn ra, dòng cũ nằm lại trong bảng `inc` và doanh thu bị thổi phồng. Mở rộng cửa sổ không sửa được; 4 test của dbt cũng không bắt được (chúng không so với nguồn). Chỉ đối chiếu với nguồn mới bắt được.
+
+**Model và test**
+- File `bi_dbt/models/marts/fct_net_sales_inc.sql`: `materialized='incremental'`, `unique_key='order_item_id'`, `incremental_strategy='merge'`, cùng grain và cùng cột với `fct_net_sales`. Không sửa `fct_net_sales` (Power BI đang đọc).
+- Thêm vào `_marts__models.yml` 4 test: `order_item_id` (`unique`, `not_null`), `product_id` (`not_null`, `relationships` sang `dim_products`). `dbt test --select fct_net_sales_inc`: `PASS=4 TOTAL=4`; `Found 7 models, 15 data tests, 4 sources`.
+- Con số `Found`: 7 models = 2 mẫu + 2 staging + 3 mart; 15 test = 4 mẫu + 7 + 4 mới; 4 sources = 4 bảng khai báo.
+
+**Đối chiếu số (nguồn public đã đổi)**
+- Bảng `inc` 45.271 dòng khớp `staging_complete` hiện tại (45.271), còn `fct_net_sales` là bản chụp 45.529 dòng. Số `Complete` đã qua 3 giá trị theo thời gian: 45.282 (bản `lab`), 45.529, 45.271.
+- So id giữa bản chụp cũ và bản mới: 34.191 id chỉ có ở bản cũ (đổi sang Shipped 13.871, Processing 8.871, Cancelled 6.770, Returned 4.576, không còn trong nguồn 103), 33.933 id chỉ có ở bản mới; chênh ròng 258. Nguồn không chỉ thêm dòng ở cuối mà đổi trạng thái đơn cũ trên diện rộng.
+- Sau `MERGE`: `so_dong_inc` = `so_id_inc` = `so_dong_nguon` = 45.271, thiếu 0, thừa 0 (đúng tại lúc chạy, chưa chứng minh cửa sổ 3 ngày bắt được thay đổi).
+- Cell 5: `max(order_date)` trong bảng `inc` là 2026-10-16 (lúc `MERGE` lần hai là 2026-10-18), mốc lọc 2026-10-13, có 1.241 đơn trong cửa sổ. Không so được với 454 vì hai cửa sổ khác nhau.
+
+**Chi phí (đo bằng billed)**
+- Cell 2 và Cell 3 đọc 3 bảng: billed 30 MB; Cell 4 và Cell 5 đọc 2 bảng: billed 20 MB, dù processed chỉ 3,5 đến 6,6 MB. Ủng hộ giả thuyết mức tối thiểu 10 MB tính theo từng bảng khác nhau (nhắc cùng một bảng nhiều lần vẫn tính một lần).
+- `dbt test` hôm nay chưa đo bằng `INFORMATION_SCHEMA.JOBS` (ước tính khoảng 50 đến 60 MB).
+
+**Khi nào dùng incremental**
+- Dùng khi dữ liệu chỉ thêm theo ngày và lịch sử nguồn ổn định, hoặc nguồn có cột `updated_at` đáng tin. Giữ `table` khi bảng nhỏ hoặc nguồn sửa dòng cũ mà không biết dòng nào.
+- Logistics: trạng thái đơn đổi lâu sau ngày đặt, nên lọc theo `order_date` sẽ bỏ sót. Cần cột "lần cập nhật cuối" hoặc cửa sổ rộng bằng chu kỳ giao và hoàn hàng. (Mình nghĩ bảng nguồn có `shipped_at`, `delivered_at`, `returned_at`, chưa kiểm tra.)
+
+**Ôn code Python cuối ngày**
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: bỏ qua cache (không xóa), trần so với bytes billed, nhân `1024 * 1024` đổi MB sang byte.
+- `job = client.query(...)` trả `job` ngay (không chờ); `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`; byte lấy từ `job` sau `result()`.
+- `for _, row in df.iterrows():` mỗi vòng đưa ra một cặp (nhãn dòng, cả dòng); `row["query"]` là một ô. Chỉ một tên biến thì `row` nhận cả cặp và lỗi `TypeError` nổ ở `row["query"]`.
+
+**Điều mình chưa chắc**
+- `max(order_date)` trong bảng `inc` tụt từ 2026-10-18 xuống 2026-10-16 sau `MERGE` (mình đoán có dòng được ghi đè với `order_date` mới).
+- Trong 454 dòng `MERGE`, bao nhiêu dòng có giá trị thật sự khác.
+- Vì sao `MERGE` processed nhiều hơn `CREATE TABLE`; staging view có bị quét hết dù có lọc ngày không.
+- Thí nghiệm xóa 2 ngày cuối rồi `dbt run` (để thấy `MERGE` thêm dòng mới) chưa làm.
+
+**Cần ôn lại đầu ngày sau:** (1) incremental chỉ lọc theo điều kiện rồi `MERGE` theo khóa, không tự biết dòng nào đổi; (2) cửa sổ là `max - 3 ngày` (trừ, không cộng); (3) 4 test của dbt không bắt được dòng đổi trạng thái ở nguồn; (4) `client.query()` không chờ, `job.result()` mới chờ; (5) khóa yml viết thường (`name`), `maximum_bytes_billed` có chữ `s`; (6) `iterrows()` trả cặp, lỗi nổ ở `row["query"]`.
