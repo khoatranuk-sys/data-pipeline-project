@@ -66,3 +66,21 @@ models:
         description: "Giá vốn của mặt hàng."
       - name: gross_profit
         description: "Lợi nhuận gộp = sale_price - cost."
+  
+
+  - name: fct_net_sales_inc
+    description: "Doanh thu thực tế dạng incremental. 1 dòng = 1 mặt hàng trong 1 đơn Complete (cùng grain với fct_net_sales). Lần đầu dựng đủ bảng, các lần sau lấy đơn Complete từ 3 ngày trước ngày mới nhất rồi MERGE theo order_item_id. Lưu ý: MERGE không xóa dòng, nên đơn đã vào bảng rồi đổi trạng thái khác Complete vẫn còn nằm lại."
+    columns:
+      - name: order_item_id
+        description: "Khóa của bảng, là order item trong nguồn thelook."
+        data_tests:
+          - unique
+          - not_null
+      - name: product_id
+        description: "Khóa nối sang dim_products."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
