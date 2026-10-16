@@ -698,3 +698,49 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Thí nghiệm xóa 2 ngày cuối rồi `dbt run` (để thấy `MERGE` thêm dòng mới) chưa làm.
 
 **Cần ôn lại đầu ngày sau:** (1) incremental chỉ lọc theo điều kiện rồi `MERGE` theo khóa, không tự biết dòng nào đổi; (2) cửa sổ là `max - 3 ngày` (trừ, không cộng); (3) 4 test của dbt không bắt được dòng đổi trạng thái ở nguồn; (4) `client.query()` không chờ, `job.result()` mới chờ; (5) khóa yml viết thường (`name`), `maximum_bytes_billed` có chữ `s`; (6) `iterrows()` trả cặp, lỗi nổ ở `row["query"]`.
+
+## Tuần 4 - Ngày 4: Measure và DAX cơ bản
+
+**Ý chính (4 ý cần nhớ)**
+- Measure là công thức tính lại mỗi lần biểu đồ hiển thị, theo filter context của từng ô; không lưu giá trị. Calculated column tính một lần lúc Load/Refresh cho từng dòng của bảng và lưu trong bảng (file nặng hơn).
+- Filter context: slicer lọc `dim_products`, bộ lọc đi qua quan hệ `product_id` từ một sang nhiều, `SUM` chỉ cộng các dòng fact còn lại. Dòng Total tính lại measure với filter context rỗng (không cộng các dòng). Không có quan hệ thì mọi category cùng một tổng (sai âm thầm, không có lỗi đỏ).
+- Tỷ lệ phải là tổng chia tổng (`DIVIDE([Gross Profit], [Net Revenue])`). Trung bình các tỷ lệ cho mọi nhóm trọng số ngang nhau (Clothing Sets 4.360 doanh thu ngang Jeans 315.285), làm số sai.
+- Explicit measure tốt hơn implicit: gọi lại được trong measure khác, sửa một chỗ, không bị đổi cách gộp nhầm, đặt tên và định dạng một lần. Implicit chỉ để xem thử.
+
+**5 measure** (bảng `fct_net_sales`)
+
+| Measure | Công thức DAX | Tương đương SQL |
+|---|---|---|
+| Net Revenue | `SUM(fct_net_sales[sale_price])` | `SUM(sale_price)` |
+| Gross Profit | `SUM(fct_net_sales[gross_profit])` | `SUM(gross_profit)` |
+| Order Items | `COUNTROWS(fct_net_sales)` | `COUNT(*)` |
+| Orders | `DISTINCTCOUNT(fct_net_sales[order_id])` | `COUNT(DISTINCT order_id)` |
+| Gross Margin % | `DIVIDE([Gross Profit], [Net Revenue])` | `SAFE_DIVIDE(SUM(gross_profit), SUM(sale_price))` |
+
+- `DIVIDE` trả BLANK khi mẫu số 0; toán tử `/` trong DAX ra `Infinity`. Trong SQL, `a / b` báo lỗi `division by zero`, `SAFE_DIVIDE` trả NULL.
+- `COUNTROWS` đếm dòng; đếm cột bằng `COUNT` bỏ qua NULL (bảng này không có NULL nên ra cùng số).
+
+**Đối chiếu SQL và Power BI** (cùng bản chụp mart, không Refresh)
+
+| | SQL | Power BI |
+|---|---|---|
+| Order items | 45.529 | 45.529 |
+| Orders | 31.335 | 31.335 |
+| Net Revenue | 2.685.271,28 | 2.685.271,28 |
+| Gross Profit | 1.391.199,0 | 1.391.199,00 |
+| Margin | 0,5181 | 51,8% |
+
+- Theo department: Men 23.067 dòng, 1.427.482,26, lợi nhuận 738.332,74, 15.793 đơn, biên 51,7%; Women 22.462 dòng, 1.257.789,02, lợi nhuận 652.866,26, 15.542 đơn, biên 51,9%. Cộng lại khớp tổng.
+- `Orders` cộng khớp (15.793 + 15.542 = 31.335), nhưng `DISTINCTCOUNT` nói chung không cộng được theo nhóm. Ở dữ liệu này đúng nếu mỗi đơn chỉ thuộc một department (chưa kiểm).
+- Chi phí: Cell 3 processed 1,04 MB, billed 10 MB; Cell 4 (2 bảng) processed 1,09 MB, billed 20 MB. Power BI Import mode không tốn byte khi tạo measure và lọc.
+
+**Ôn code Python cuối ngày**
+- `job = client.query(sql, job_config=cfg)`: gửi SQL lên BigQuery và trả `job` ngay, không chờ. `df = job.result().to_dataframe()`: `result()` chờ job xong, `.to_dataframe()` đưa kết quả vào `df` (DataFrame trong bộ nhớ, tắt kernel là mất). Byte lấy từ `job` sau `result()`, không từ `df`; đọc byte quá sớm ra `None`.
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: tắt cache chỉ là bỏ qua cache, không xóa gì; nhân `1024 * 1024` đổi MB sang byte; trần so với bytes **billed** (tối thiểu 10 MB mỗi bảng), không phải processed; vượt thì BigQuery từ chối chạy, **không tính tiền**.
+- `print(len(df))`: kiểm tra số dòng mong đợi; có ích khi `df` dài hoặc trước vòng `for` (bảng rỗng thì vòng chạy 0 lần, không báo lỗi).
+
+**Điều mình chưa chắc**
+- Mỗi đơn chỉ thuộc một department hay có đơn lẫn Men và Women (chưa kiểm bằng SQL).
+- Tên menu Power BI có thể khác theo phiên bản.
+
+**Cần ôn lại đầu ngày sau:** (1) tổng chia tổng khác trung bình các tỷ lệ (trọng số); dòng Total tính lại measure với filter context rỗng; (2) `client.query()` không chờ, `job.result()` mới chờ, byte lấy từ `job`; (3) filter đi từ một sang nhiều qua `product_id`; xóa quan hệ thì mọi category cùng tổng; (4) `maximum_bytes_billed` so với billed, vượt thì không tính tiền; (5) calculated column tính lúc Load và lưu trong bảng, measure tính lúc hiển thị.

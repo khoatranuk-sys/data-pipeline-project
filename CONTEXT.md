@@ -221,9 +221,19 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: incremental không tự biết dòng nào đổi; cửa sổ là `max - 3 ngày`; 4 test không bắt được dòng đổi trạng thái; `client.query()` không chờ, `job.result()` mới chờ; `iterrows()` trả cặp.
   - **Checklist Excel**: xong việc "Viết incremental model"; Tuần 4 là 3/7, tổng 32/69.
 
+  - **Tuần 4, Ngày 4**: measure và DAX cơ bản trong Power BI. Notebook `Python/Week 4/Day4.ipynb` (đối chiếu SQL).
+  - **5 measure** trong bảng `fct_net_sales` (viết bằng New measure): `Net Revenue = SUM(sale_price)`, `Gross Profit = SUM(gross_profit)`, `Order Items = COUNTROWS(fct_net_sales)`, `Orders = DISTINCTCOUNT(order_id)`, `Gross Margin % = DIVIDE([Gross Profit], [Net Revenue])` (tổng chia tổng). Tương ứng SQL: SUM, COUNT(*), COUNT(DISTINCT), SAFE_DIVIDE.
+  - **Đối chiếu SQL và Power BI** (mart là bản chụp Import, chưa Refresh): 45.529 order item, 31.335 đơn, doanh thu 2.685.271,28, lợi nhuận 1.391.199,0, biên 0,5181 (51,8%); billed 10 MB (processed 1,04 MB). Theo department (Cell 4, 2 bảng, billed 20 MB): Men 23.067 dòng, 1.427.482,26, lợi nhuận 738.332,74, 15.793 đơn, biên 51,7%; Women 22.462 dòng, 1.257.789,02, lợi nhuận 652.866,26, 15.542 đơn, biên 51,9%. Men + Women khớp tổng; slicer `dim_products[department]` làm bảng category và các Card đổi đúng.
+  - **Implicit và explicit measure**: cùng số (kéo `sale_price` vào biểu đồ ra Sum 2.685.271,28), nhưng explicit gọi lại được trong measure khác, định nghĩa một chỗ, không bị đổi cách gộp nhầm (`Average of gross_profit` = 30,56 là lợi nhuận trung bình mỗi dòng, khác hẳn biên 51,8%).
+  - **Filter context**: slicer lọc `dim_products` rồi bộ lọc đi qua quan hệ `product_id` từ một sang nhiều; ở dòng Total, Power BI tính lại measure với filter context rỗng, không cộng các dòng. Không có quan hệ thì mọi category hiện cùng tổng 2.685.271,28.
+  - **Measure và calculated column**: column tính từng dòng của fact lúc Load/Refresh và lưu trong bảng; measure tính lúc hiển thị theo filter context. Tỷ lệ ở dòng Total phải là measure (tổng chia tổng), cột chốt tỷ lệ từng dòng rồi gộp lại thì mọi dòng nặng ngang nhau.
+  - **Chưa làm**: sửa tên measure sai chính tả (`Goss Profit`, `Goss Margin %`, thẻ `Order`); `.pbix` chưa lưu ngoài repo nếu chưa lưu (kiểm tra).
+  - **Ôn Python cuối ngày**: 2 câu Python + 3 câu nội dung. Cần ôn: tổng chia tổng khác trung bình các tỷ lệ (trọng số); `client.query()` không chờ, `job.result()` mới chờ, byte lấy từ `job`, `.to_dataframe()` đưa kết quả vào `df`; `maximum_bytes_billed` so với **billed** (không phải processed), vượt thì không tính tiền; xóa quan hệ thì mọi category cùng tổng, không báo lỗi; calculated column tính lúc Load, lưu trong bảng.
+  - **Checklist Excel**: xong việc "Viết measure và DAX cơ bản"; Tuần 4 là 4/7, tổng 33/69.
+
 ## 8. Đang làm
 
-- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2); viết incremental model (xong Ngày 3); viết measure và DAX cơ bản; chuẩn hóa star schema trong Power BI; cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2); viết incremental model (xong Ngày 3); viết measure và DAX cơ bản (xong Ngày 4); chuẩn hóa star schema trong Power BI (Ngày 5, dự kiến thêm `dim_date`); cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -293,6 +303,9 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`Ctrl+C` không dừng được `dbt docs serve`**: thử `Esc` rồi `Ctrl+C` lại, hoặc `Ctrl+Break`, hoặc đóng cửa sổ Anaconda Prompt (an toàn, chỉ phục vụ file tĩnh).
 - **`AttributeError: Property maximum_byte_billed is unknown`**: gõ thiếu chữ `s`, tên đúng là `maximum_bytes_billed`. Lỗi nổ lúc tạo cấu hình, trước khi query được gửi nên không tốn tiền. Sửa trong Cell 1 rồi chạy lại Cell 1 trước, sau đó mới chạy lại cell dùng hàm.
 - **`'name' is a required property` / `Custom key 'Name'` khi `dbt compile`**: khóa yml viết hoa chữ `N` (`- Name:`); YAML phân biệt hoa thường. Đọc tên khóa trong dòng cảnh báo rồi so với các khối đã chạy tốt. Sau khi sửa, `Found` đủ 15 data tests.
+- **`AttributeError` với `job.total_bytes_process`**: thiếu `ed`, tên đúng là `total_bytes_processed`. Cell định nghĩa hàm vẫn chạy xanh vì chưa gọi hàm; lỗi nổ lúc gọi `check(sql)`. Sửa Cell 1 rồi chạy lại Cell 1 trước, sau đó mới chạy cell gọi hàm.
+- **Tên measure Power BI gõ sai chính tả (`Goss` thay `Gross`)**: Power BI không báo lỗi. Sửa phần tên trước dấu `=` trong thanh công thức, biểu đồ tự cập nhật.
+- **Kéo cột số vào biểu đồ rồi đổi sang Average** (implicit measure): ra số hợp lệ nhưng khác nghĩa (lợi nhuận trung bình mỗi dòng 30,56, không phải biên 51,8%); không có lỗi đỏ. Số đưa vào dashboard phải là explicit measure.
 
 
 ## 10. Quyết định đã chốt
@@ -332,6 +345,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 4, Ngày 1: test của dbt khai báo trong file yml cạnh model (`models/marts/_marts__models.yml`). Mỗi mart có ít nhất `unique` + `not_null` trên khóa và `relationships` từ fact sang dim. Luôn `GROUP BY` xem giá trị thật trước khi viết `accepted_values`. Sau mỗi `dbt test`, đọc dòng WARNING vàng và so `TOTAL` với số test mong đợi.
 - Tuần 4, Ngày 2: mỗi mart và source có `description` ngay trong yml (mô tả bảng nói rõ grain và quy tắc nghiệp vụ). Chỉ chạy `dbt docs generate` khi mô tả hoặc cấu trúc đổi (tốn khoảng 100 MB mỗi lần); xem lại tài liệu thì dùng `dbt docs serve` (miễn phí). Mọi lệnh dbt chạy trong `bi_dbt`. Câu hỏi lệch mục đích của ngày ghi vào mục 11 và làm sau khi xong phần chính.
 - Tuần 4, Ngày 3: chỉ dùng `incremental` khi nguồn chỉ thêm dòng hoặc có cột `updated_at` đáng tin; nguồn sửa dòng cũ mà không biết dòng nào thì giữ `table`. Model incremental luôn đi kèm `unique_key` và đối chiếu với nguồn (thiếu, thừa) trước khi tin; không coi `dbt test` là đối chiếu nguồn. Mart incremental mới đặt tên `fct_*_inc`, không thay `fct_net_sales` mà Power BI đang đọc.
+- Tuần 4, Ngày 4: số nào đưa vào dashboard hoặc đối chiếu phải là explicit measure (đặt tên đúng, định dạng một lần), không dùng implicit measure. Tỷ lệ luôn là `DIVIDE([tử], [mẫu])` của hai tổng, không lưu tỷ lệ từng dòng thành cột. Measure đặt trong bảng `fct_net_sales`; đối chiếu với SQL trên cùng bảng mart và cùng bản chụp (không Refresh giữa chừng).
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -352,6 +366,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao query catalog của `docs generate` không lấy từ cache (giả thuyết: query đọc `INFORMATION_SCHEMA` không được cache)? Chưa kiểm chứng.
 - Lineage mặc định không vẽ node test (giả thuyết, chưa kiểm chứng trên dbt 1.12.5).
 - `persist_docs` có đẩy mô tả yml sang cột Description của BigQuery không, và hoạt động thế nào với bảng `table`? Chưa thử.
+- `Orders` cộng đúng theo department (15.793 + 15.542 = 31.335): có phải mỗi đơn chỉ thuộc một department không? Chưa kiểm bằng SQL (đếm đơn có cả sản phẩm Men và Women).
+- Vì sao `Gross Margin %` ở các dòng category lệch nhau ít (37% đến 62%) trong khi doanh thu mỗi dòng rất khác nhau? Chưa phân tích, để dành cho bước thiết kế dashboard Tuần 5.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
