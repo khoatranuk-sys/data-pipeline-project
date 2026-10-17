@@ -744,3 +744,32 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Tên menu Power BI có thể khác theo phiên bản.
 
 **Cần ôn lại đầu ngày sau:** (1) tổng chia tổng khác trung bình các tỷ lệ (trọng số); dòng Total tính lại measure với filter context rỗng; (2) `client.query()` không chờ, `job.result()` mới chờ, byte lấy từ `job`; (3) filter đi từ một sang nhiều qua `product_id`; xóa quan hệ thì mọi category cùng tổng; (4) `maximum_bytes_billed` so với billed, vượt thì không tính tiền; (5) calculated column tính lúc Load và lưu trong bảng, measure tính lúc hiển thị.
+
+## Tuần 4 - Ngày 5: dim_date và star schema trong Power BI
+
+**Ý chính (4 ý cần nhớ)**
+- `dim_date` là dimension thời gian, mỗi dòng một ngày; làm bằng SQL thuần (`generate_date_array`) nên không đọc bảng nào và dbt không quét byte. Khóa `date_day` nối với `fct_net_sales.order_date`.
+- Star schema trong Power BI: fact ở giữa, các dimension (`dim_products`, `dim_date`) nối vào fact, phía một là dimension, hướng lọc Single. Hai dimension không nối với nhau; fact là chỗ hai bộ lọc giao nhau (AND), không truyền bộ lọc giữa các dimension.
+- Test `relationships` từ fact sang dim tìm giá trị CÓ trong fact nhưng KHÔNG có trong dimension. Nếu lọt, dòng đó hiện thành (Blank) trong ma trận theo `year_number`, Total vẫn đủ nên không có lỗi đỏ.
+- `month_number`, `weekday_number` có để Power BI sắp xếp tên tháng và thứ đúng thứ tự (mặc định xếp theo bảng chữ cái). Tắt Auto date/time để Power BI không tự sinh bảng ngày ẩn.
+
+**Đã làm**
+- File `bi_dbt/models/marts/dim_date.sql` (`table`), 3.287 dòng. Test: `date_day` `unique` + `not_null`, `fct_net_sales.order_date` `relationships`. `dbt test --select dim_date fct_net_sales` `PASS=7`; `Found 8 models, 18 data tests`.
+- Đối chiếu: 0 `order_date` không khớp; doanh thu theo năm từ SQL (Cell 4) khớp ma trận Power BI; tổng 2.685.271,28; Women 1.257.789,02 và 22.462 dòng.
+- Chi phí: Cell 2 billed 10 MB (processed 0,03), Cell 3 và Cell 4 billed 20 MB (hai bảng). Mức tối thiểu 10 MB tính theo từng bảng vẫn là giả thuyết (chưa có tài liệu xác nhận).
+
+**Lỗi và chỗ dễ nhầm**
+- Lỗi chính tả `data_test` (đúng là `data_tests`): chỉ có dòng vàng, test bị bỏ qua; số test hiện `17` thay vì `18` là dấu hiệu.
+- "One to many" và "Many to one" là hai cách đọc cùng một quan hệ; cái cần đúng là phía "một" là dimension.
+- Ẩn cột: chuột phải → Hide; View hidden chỉ là công tắc hiện lại.
+
+**Ôn code Python cuối ngày**
+- `df = job.result().to_dataframe()`: `client.query()` gửi job và trả `job` ngay (không chờ); dòng này chờ job xong rồi đưa kết quả vào `df`. `df` là DataFrame trong bộ nhớ (không phải table ở BigQuery), chỉ chứa dòng kết quả; byte processed/billed nằm ở `job`, đọc sau `result()`.
+- `for _, row in df.iterrows():` mỗi vòng đưa ra cặp (nhãn, cả một dòng); `_` bỏ nhãn, `row` giữ cả dòng, `row["net_revenue"]` là một ô; vòng chạy đúng bằng số dòng của `df` (Cell 4: 8).
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: bỏ qua cache (không xóa), nhân `1024 * 1024` đổi MB sang byte, trần so với bytes billed, vượt thì từ chối chạy và không tính tiền.
+
+**Điều mình chưa chắc**
+- Có cần Mark as date table cho time intelligence ở Tuần 5 không (hộp thoại ghi "not recommended").
+- Chi phí thật của 7 test hôm nay.
+
+**Cần ôn lại đầu ngày sau:** (1) dòng `df = ...` không gửi job, `df` không phải bảng BigQuery; (2) `relationships` tìm giá trị có trong fact nhưng không có trong dimension, không phải NULL; dòng lọt hiện thành (Blank); (3) processed nhỏ vì chỉ đọc cột cần; (4) bộ lọc đi một chiều từ dimension sang fact, fact là chỗ giao nhau (AND); (5) đọc số `Found ... data tests` và dòng vàng sau mỗi lệnh dbt.

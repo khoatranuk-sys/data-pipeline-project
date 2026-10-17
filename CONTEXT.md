@@ -44,6 +44,8 @@
 - Cấu trúc dbt (từ Tuần 4 Ngày 1): thêm `bi_dbt/models/marts/_marts__models.yml` (khai báo test cho `dim_products` và `fct_net_sales`, có commit). Lệnh dùng: `dbt test --select dim_products fct_net_sales` (`test` là lệnh, `--select` là tùy chọn; dbt chạy mọi test có đụng tới model được chọn, kể cả test `relationships` đặt ở model khác). SQL của từng test nằm ở `bi_dbt\target\compiled\bi_dbt\models\marts\_marts__models.yml\` (tên thư mục là `_marts__models.yml`, do dbt tự tạo, không commit). Notebook tuần 4: `Python/Week 4/Day1.ipynb` (sửa lại nếu bạn đặt tên khác).
 - Cấu trúc dbt (từ Tuần 4 Ngày 2): thêm `description` vào `bi_dbt/models/marts/_marts__models.yml` (2 mart và các cột) và vào `bi_dbt/models/staging/thelook/_thelook__sources.yml` (source `thelook` và 4 bảng). Lệnh dùng (Anaconda Prompt, env `bi`, đang ở thư mục `bi_dbt`): `dbt docs generate` (sinh `target\manifest.json` và `target\catalog.json`) và `dbt docs serve` (mở `http://localhost:8080`, dừng bằng `Ctrl+C`). Lệnh dbt phải chạy trong `bi_dbt`, đứng ở thư mục gốc repo thì báo `No dbt_project.yml found`. Notebook: `Python/Week 4/Day2.ipynb`.
 - Cấu trúc dbt (từ Tuần 4 Ngày 3): thêm `bi_dbt/models/marts/fct_net_sales_inc.sql` (`materialized='incremental'`, `unique_key='order_item_id'`, `incremental_strategy='merge'`, lọc `status = 'Complete'` và từ lần chạy thứ hai chỉ lấy `order_date >= max(order_date) trong bảng - 3 ngày`) và 4 test mới cho model này trong `_marts__models.yml` (`order_item_id`: `unique`, `not_null`; `product_id`: `not_null`, `relationships`). Lệnh dùng: `dbt run --select fct_net_sales_inc` (lần đầu `CREATE TABLE`, các lần sau `MERGE`; không dùng `--full-refresh` trừ khi muốn dựng lại cả bảng) và `dbt test --select fct_net_sales_inc`. Không comment `--` có dấu ngoặc nhọn trong file SQL vì Jinja vẫn xử lý. Notebook: `Python/Week 4/Day3.ipynb` (sửa lại nếu bạn đặt tên khác).
+- Cấu trúc dbt (từ Tuần 4 Ngày 5): thêm `bi_dbt/models/marts/dim_date.sql` (`materialized='table'`, tạo bằng `generate_date_array`, không đọc bảng nguồn, 3.287 dòng từ 2019-01-01 đến 2027-12-31; cột `date_day`, `year_number`, `quarter_number`, `quarter_name`, `month_number`, `month_name`, `year_month`, `weekday_number` (Monday = 1), `weekday_name`) và 3 test mới trong `_marts__models.yml` (`dim_date.date_day`: `unique`, `not_null`; `fct_net_sales.order_date`: `relationships` sang `dim_date.date_day`). Lệnh dùng: `dbt run --select dim_date` và `dbt test --select dim_date fct_net_sales`. Notebook: `Python/Week 4/Day5.ipynb`.
+- Power BI (từ Tuần 4 Ngày 5): thêm bảng `dbt_dev.dim_date` (Import), quan hệ `fct_net_sales.order_date` (nhiều) → `dim_date.date_day` (một), Single, cùng với quan hệ `product_id` đã có. Tắt Auto date/time (File → Options and settings → Options → Current File → Data Load). Ẩn cột khóa trong fact (chuột phải cột → Hide; chọn nhiều cột bằng Ctrl) và `month_number`, `weekday_number` trong `dim_date`.
 
 ## 5. Chi phí và an toàn
 
@@ -62,6 +64,7 @@
 - Power BI không dùng `maximum_bytes_billed`; cầu chì hiện là kích thước bảng nhỏ. Import mode chỉ tốn byte lúc Load/Refresh (mỗi bảng có thể bị tính tối thiểu 10 MB); lọc và bấm biểu đồ sau khi đã Load không tốn byte. Không Publish, không đặt scheduled refresh khi chưa hiểu phần chia sẻ.
 - dbt test (từ Tuần 4 Ngày 1): mỗi test là một query gửi lên BigQuery, billed tối thiểu 10 MB mỗi bảng được đọc (`relationships` đọc 2 bảng); mỗi query bị chặn bởi `maximum_bytes_billed: 1000000000` trong `profiles.yml`. Chạy test không tạo bảng. Chi phí cả buổi chưa đo (ước tính vài trăm MB, dưới 0,01 USD).
 - Chi phí thật của dbt (đo ngày 14/10/2026 bằng `INFORMATION_SCHEMA.JOBS`, nhận ra query dbt nhờ chú thích `/* {"app": "dbt"` ở đầu query): `dbt test` ngày 13/10 gồm 15 query, tổng 90 MB billed (query chạy lại giống hệt thì lấy từ cache, billed 0). `dbt docs generate` gửi 2 query catalog (mỗi dataset một query, mỗi query đọc 5 bảng hệ thống, processed 40 MB, billed 50 MB), tổng 100 MB mỗi lần và không dùng cache; chạy 2 lần trong ngày 14/10. `dbt docs serve` không gọi BigQuery. `dbt compile` không gửi query. Chỉ chạy `docs generate` khi mô tả hoặc cấu trúc đã đổi.
+- dbt test (Tuần 4 Ngày 5): `dbt run --select dim_date` báo `CREATE TABLE (3.3k rows, 0 processed)`, không quét byte. `dbt test --select dim_date fct_net_sales` chạy 7 test (chi phí chưa đo bằng `INFORMATION_SCHEMA.JOBS`, ước tính dưới 100 MB). Query đọc hai bảng (Cell 3, Cell 4) billed 20 MB, một bảng nhỏ (Cell 2) billed 10 MB (processed 0,03 MB): ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng" (mới vài lần đo, chưa có tài liệu xác nhận).
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -78,6 +81,7 @@
 | Tùy chọn / Hoãn | dbt snapshot (SCD Type 2), gói dịch vụ freelance; hướng DE (Docker, Airflow, Terraform, Spark) |
 
 Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày 3 Python cho pipeline (1), Ngày 4 Python (2) + Git, Ngày 5 mini project (API → làm sạch → BigQuery, có logging, README), Ngày 6 ôn tập.
+- Từ 17/10/2026: hai việc CV và LinkedIn của Tuần 4 (cập nhật CV/LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu) chuyển về Tuần 8. Tuần 4 còn 5 việc, đều xong.
 
 ## 7. Đã hoàn thành
 - **Ngày 1 (Tuần 1)**: tạo project GCP, chạy query đầu tiên trên `bigquery-public-data.thelook_ecommerce`, cài gcloud, tạo môi trường `bi`, cài Git, tạo repo GitHub, chạy query BigQuery từ Python (có dry run và giới hạn bytes), viết `notes.md`.
@@ -231,9 +235,19 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn Python cuối ngày**: 2 câu Python + 3 câu nội dung. Cần ôn: tổng chia tổng khác trung bình các tỷ lệ (trọng số); `client.query()` không chờ, `job.result()` mới chờ, byte lấy từ `job`, `.to_dataframe()` đưa kết quả vào `df`; `maximum_bytes_billed` so với **billed** (không phải processed), vượt thì không tính tiền; xóa quan hệ thì mọi category cùng tổng, không báo lỗi; calculated column tính lúc Load, lưu trong bảng.
   - **Checklist Excel**: xong việc "Viết measure và DAX cơ bản"; Tuần 4 là 4/7, tổng 33/69.
 
+    - **Tuần 4, Ngày 5**: thêm `dim_date` và chuẩn hóa star schema trong Power BI. Notebook `Python/Week 4/Day5.ipynb`.
+  - **`dim_date`**: tạo bằng dbt (SQL thuần, `generate_date_array`), chạy `CREATE TABLE`, 3,3 nghìn dòng, 0 byte processed, 8,80 giây. 3.287 dòng = 3.287 ngày duy nhất, không NULL (9 năm × 365 + 2 năm nhuận). `month_number` và `weekday_number` có để Power BI sắp xếp tên tháng và thứ theo đúng thứ tự.
+  - **Test**: `dbt test --select dim_date fct_net_sales` `PASS=7 TOTAL=7`; `dbt compile` báo `Found 8 models, 18 data tests, 4 sources` (15 test cũ + 2 của `dim_date` + 1 `relationships` mới).
+  - **Đối chiếu** (cùng bản chụp mart, không Refresh `fct_net_sales`): `fct_net_sales` 45.529 dòng, 0 `order_date` không khớp `dim_date`, ngày đặt hàng từ 2019-01-27 đến 2026-10-14. Doanh thu theo năm khớp ma trận Power BI: 2019: 335 dòng, 17.837,11; 2020: 1.212, 71.756,66; 2021: 2.218, 133.658,87; 2022: 3.459, 202.062,04; 2023: 4.936, 290.075,70; 2024: 6.929, 406.979,98; 2025: 10.706, 624.117,64; 2026: 15.734, 938.783,28; tổng 2.685.271,28. Chọn Women: 1.257.789,02 và 22.462 dòng (khớp số Women Ngày 4). Chi phí: Cell 2 billed 10 MB (processed 0,03), Cell 3 billed 20 MB (0,37), Cell 4 billed 20 MB (0,74).
+  - **Power BI**: mô hình có `dim_products` và `dim_date` cùng nối vào `fct_net_sales` (nhiều), Single. "One to many" và "Many to one" chỉ là hai cách đọc cùng một quan hệ, tùy bảng nào đứng bên From; cái cần đúng là phía "một" là dimension. Đã sửa tên measure sai chính tả (`Gross`), xóa thẻ implicit `Average of gross_profit`, tắt Auto date/time. Hộp thoại Mark as a date table ghi "not recommended" (chỉ cần cho một số mô hình như Excel PivotTable).
+  - **Chưa xác nhận trong ảnh**: ẩn cột `order_date` của fact (lúc chụp chưa ẩn), sort `month_name` theo `month_number` và `weekday_name` theo `weekday_number`, đã bấm Save ở hộp thoại Mark as a date table chưa, đã lưu `.pbix` ngoài repo chưa.
+  - **Chưa làm**: chưa có `dim_users` (source `users` đã khai báo, chưa có model).
+  - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: `df = job.result().to_dataframe()` (dòng này chờ job rồi đưa kết quả vào DataFrame, không gửi job; `df` là DataFrame trong bộ nhớ, không phải table ở BigQuery; `df` chỉ chứa dòng kết quả, byte nằm ở `job`); `iterrows()` đưa ra cặp (nhãn, cả một dòng); `relationships` tìm giá trị CÓ trong fact nhưng KHÔNG có trong dimension (không phải NULL của fact); dòng không khớp hiện thành (Blank) trong ma trận, Total vẫn đủ nên không có lỗi đỏ; processed nhỏ vì query chỉ đọc cột cần (không phải vì bảng ít cột); bộ lọc đi một chiều từ dimension sang fact, fact là chỗ hai bộ lọc giao nhau (AND), không truyền bộ lọc giữa hai dimension.
+  - **Checklist Excel**: xong việc "Chuẩn hóa mô hình star schema trong Power BI"; Tuần 4 là 5/7, tổng 34/69.
+
 ## 8. Đang làm
 
-- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2); viết incremental model (xong Ngày 3); viết measure và DAX cơ bản (xong Ngày 4); chuẩn hóa star schema trong Power BI (Ngày 5, dự kiến thêm `dim_date`); cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2); viết incremental model (xong Ngày 3); viết measure và DAX cơ bản (xong Ngày 4); chuẩn hóa star schema trong Power BI (xong Ngày 5, thêm `dim_date`); còn lại cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -306,7 +320,12 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`AttributeError` với `job.total_bytes_process`**: thiếu `ed`, tên đúng là `total_bytes_processed`. Cell định nghĩa hàm vẫn chạy xanh vì chưa gọi hàm; lỗi nổ lúc gọi `check(sql)`. Sửa Cell 1 rồi chạy lại Cell 1 trước, sau đó mới chạy cell gọi hàm.
 - **Tên measure Power BI gõ sai chính tả (`Goss` thay `Gross`)**: Power BI không báo lỗi. Sửa phần tên trước dấu `=` trong thanh công thức, biểu đồ tự cập nhật.
 - **Kéo cột số vào biểu đồ rồi đổi sang Average** (implicit measure): ra số hợp lệ nhưng khác nghĩa (lợi nhuận trung bình mỗi dòng 30,56, không phải biên 51,8%); không có lỗi đỏ. Số đưa vào dashboard phải là explicit measure.
-
+- **`The selection criterion 'dim_date' does not match any enabled nodes` dù `Found 8 models` (đã tăng từ 7)**: dbt thấy một file model mới nhưng không có model tên `dim_date`. Nguyên nhân chưa xác nhận (nghi tên file lệch một chút, ví dụ do bộ gõ tiếng Việt); sau khi chỉnh thì `dbt compile --select dim_date` tìm thấy. `dbt ls --resource-type model` hoặc `dir models\marts` để xem tên thật. Dòng vàng không dừng lệnh, chỉ in `Nothing to do`.
+- **`Custom key 'data_test' found` (thiếu chữ `s`)**: đúng là `data_tests:`. dbt chỉ báo dòng vàng `CustomKeyInObjectDeprecation`, bỏ qua khóa lạ nên test bị mất âm thầm; dấu hiệu là số test: `17 data tests` thay vì `18`. Luôn so số `Found ... data tests` với số mong đợi.
+- **Power BI: không thấy "Hide in report view"**: chuột phải cột → **Hide**; **View hidden** là công tắc hiện lại các cột đã ẩn, bật một lần cho cả mô hình. Chọn nhiều cột bằng Ctrl. Giao diện mới có nhóm Calendar options thay nút Mark as date table cũ.
+- **Kéo `dim_date` sang `fct_net_sales` ra "One to many"**: không sai, chỉ là cách đọc theo bảng From. Kiểm tra bằng Manage relationships: phía một là dimension, Single, active.
+- **Tuần 4** (hoàn tất 5/5): viết test dbt, sinh dbt docs, viết incremental model, viết measure và DAX cơ bản, chuẩn hóa star schema trong Power BI (thêm `dim_date`). Hai việc CV và LinkedIn đã chuyển về Tuần 8. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 5** (tiếp theo): Power BI nâng cao (DAX: CALCULATE, filter context; time intelligence; thiết kế dashboard; tối ưu hiệu năng), hoàn thiện Project 1, chốt ngách và dữ liệu thật.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -346,6 +365,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 4, Ngày 2: mỗi mart và source có `description` ngay trong yml (mô tả bảng nói rõ grain và quy tắc nghiệp vụ). Chỉ chạy `dbt docs generate` khi mô tả hoặc cấu trúc đổi (tốn khoảng 100 MB mỗi lần); xem lại tài liệu thì dùng `dbt docs serve` (miễn phí). Mọi lệnh dbt chạy trong `bi_dbt`. Câu hỏi lệch mục đích của ngày ghi vào mục 11 và làm sau khi xong phần chính.
 - Tuần 4, Ngày 3: chỉ dùng `incremental` khi nguồn chỉ thêm dòng hoặc có cột `updated_at` đáng tin; nguồn sửa dòng cũ mà không biết dòng nào thì giữ `table`. Model incremental luôn đi kèm `unique_key` và đối chiếu với nguồn (thiếu, thừa) trước khi tin; không coi `dbt test` là đối chiếu nguồn. Mart incremental mới đặt tên `fct_*_inc`, không thay `fct_net_sales` mà Power BI đang đọc.
 - Tuần 4, Ngày 4: số nào đưa vào dashboard hoặc đối chiếu phải là explicit measure (đặt tên đúng, định dạng một lần), không dùng implicit measure. Tỷ lệ luôn là `DIVIDE([tử], [mẫu])` của hai tổng, không lưu tỷ lệ từng dòng thành cột. Measure đặt trong bảng `fct_net_sales`; đối chiếu với SQL trên cùng bảng mart và cùng bản chụp (không Refresh giữa chừng).
+- Tuần 4, Ngày 5: `dim_date` làm bằng dbt (mart `table`, không đọc bảng nguồn), phủ 2019-2027, có `unique` + `not_null` trên `date_day` và `relationships` từ `fct_net_sales.order_date`. Mọi trục thời gian trong Power BI dùng `dim_date`, tắt Auto date/time. Ẩn cột khóa và cột thô trong fact, giữ lại measure; không đưa implicit measure vào dashboard. Lọc đi một chiều (Single) từ dimension sang fact; không dùng quan hệ hai chiều. Khi thêm bảng vào Power BI chỉ nạp bảng mới, không Refresh `fct_net_sales` giữa lúc đang đối chiếu số.
+- Tuần 4: việc CV và LinkedIn dời về Tuần 8 (Portfolio), để các tuần kỹ thuật không bị cắt ngang. Khi tới Tuần 8 làm gộp, dùng các số đo từ Project 1 và 2.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -368,6 +389,10 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - `persist_docs` có đẩy mô tả yml sang cột Description của BigQuery không, và hoạt động thế nào với bảng `table`? Chưa thử.
 - `Orders` cộng đúng theo department (15.793 + 15.542 = 31.335): có phải mỗi đơn chỉ thuộc một department không? Chưa kiểm bằng SQL (đếm đơn có cả sản phẩm Men và Women).
 - Vì sao `Gross Margin %` ở các dòng category lệch nhau ít (37% đến 62%) trong khi doanh thu mỗi dòng rất khác nhau? Chưa phân tích, để dành cho bước thiết kế dashboard Tuần 5.
+- Có cần Mark as date table cho time intelligence (YTD, so cùng kỳ) ở Tuần 5 không, và dùng cách đánh dấu nào ở phiên bản Power BI này (hộp thoại ghi "not recommended")?
+- Có thêm `dim_users` (từ source `users`) vào star schema không, hay để Tuần 5?
+- Vì sao lần `dbt run --select dim_date` đầu không tìm thấy model dù đã `Found 8 models` (nghi tên file, chưa xác nhận)?
+- Chi phí thật của `dbt test --select dim_date fct_net_sales` (7 test) chưa đo bằng `INFORMATION_SCHEMA.JOBS`.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
@@ -387,6 +412,6 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Bảng `order_items` có `shipped_at`, `delivered_at`, `returned_at` để làm cột mốc lọc incremental không (staging hiện không chọn các cột đó)? Chưa kiểm tra.
 - Làm sao xóa khỏi bảng incremental các dòng không còn khớp điều kiện ở nguồn (đơn Complete sang Returned)? Chưa thử.
 - Thí nghiệm xóa 2 ngày cuối của `fct_net_sales_inc` rồi `dbt run` để thấy `MERGE` thêm dòng mới: chưa làm.
-
+- Đầu mỗi ngày mới, ngay sau phần mục đích của ngày: đưa bản tổng quan từ đầu đến cuối (dạng bảng hoặc sơ đồ luồng). Mỗi bước theo thứ tự gồm: bước đó làm gì, chạy ở đâu (VS Code, Anaconda Prompt, BigQuery web, Power BI), và kết quả hiện ra là gì (output, file, bảng được tạo). Sau đó mới vào hướng dẫn chi tiết từng bước. Áp dụng từ Tuần 5 Ngày 1.
 
 
