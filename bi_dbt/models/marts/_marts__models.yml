@@ -60,6 +60,11 @@ models:
                 field: product_id
       - name: order_date
         description: "Ngày đặt hàng (date của created_at)."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
       - name: sale_price
         description: "Giá bán của mặt hàng. Tổng cột này là doanh thu."
       - name: cost
@@ -84,3 +89,13 @@ models:
               arguments:
                 to: ref('dim_products')
                 field: product_id
+
+
+  - name: dim_date
+    description: "Bảng lịch. 1 dòng = 1 ngày, từ 2019-01-01 đến 2027-12-31. Tạo bằng SQL, không đọc bảng nguồn."
+    columns:
+      - name: date_day
+        description: "Ngày (kiểu DATE), khóa chính. Nối với fct_net_sales.order_date."
+        data_tests:
+          - unique
+          - not_null
