@@ -773,3 +773,49 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Chi phí thật của 7 test hôm nay.
 
 **Cần ôn lại đầu ngày sau:** (1) dòng `df = ...` không gửi job, `df` không phải bảng BigQuery; (2) `relationships` tìm giá trị có trong fact nhưng không có trong dimension, không phải NULL; dòng lọt hiện thành (Blank); (3) processed nhỏ vì chỉ đọc cột cần; (4) bộ lọc đi một chiều từ dimension sang fact, fact là chỗ giao nhau (AND); (5) đọc số `Found ... data tests` và dòng vàng sau mỗi lệnh dbt.
+
+## Tuần 5 - Ngày 1: CALCULATE và filter context
+
+**Ý chính (4 ý cần nhớ)**
+- `CALCULATE(biểu thức, filter...)` tính biểu thức trong filter context đã bị sửa. Filter trong `CALCULATE` ghi đè filter cũ **trên cùng cột** (từ slicer hoặc từ dòng bảng), còn filter ở cột khác vẫn đi qua. Ví dụ: `Net Revenue Men` ở dòng Women hiện số của Men, nhưng khi chọn 2024 nó chỉ là Men của 2024.
+- `REMOVEFILTERS(dim_products)` chỉ gỡ filter của bảng `dim_products`; filter từ `dim_date` vẫn đi qua quan hệ sang fact. Dùng để lấy mẫu số "tổng": `DIVIDE([Net Revenue], [Net Revenue All Products])` ra tỷ lệ theo từng năm đang chọn.
+- `dbt run` PASS chỉ nghĩa là SQL chạy được và bảng được tạo; `dbt test` PASS chỉ nghĩa là cấu trúc ổn (`unique`, `not_null`, `accepted_values`, `relationships`). Cả hai không nói giá trị có đổi so với lần trước hay không.
+- Nguồn public mô phỏng đổi cả đơn năm cũ: doanh thu 2025 đổi từ 624.117,64 sang 615.360,21 dù test 11/11 PASS. Muốn bắt thay đổi này phải đối chiếu với nguồn hoặc bản chụp trước, như Cell 2 và Cell 3.
+
+**4 measure mới** (bảng `fct_net_sales`)
+
+| Measure | Công thức DAX | Tác dụng |
+|---|---|---|
+| Net Revenue Men | `CALCULATE([Net Revenue], dim_products[department] = "Men")` | ghi đè filter department thành Men |
+| Net Revenue 2025 | `CALCULATE([Net Revenue], dim_date[year_number] = 2025)` | ghi đè filter năm thành 2025, slicer năm không làm đổi |
+| Net Revenue All Products | `CALCULATE([Net Revenue], REMOVEFILTERS(dim_products))` | gỡ filter department, giữ filter năm |
+| Revenue % of Total | `DIVIDE([Net Revenue], [Net Revenue All Products])` | tổng chia tổng, ra tỷ lệ theo năm đang chọn |
+
+**Đối chiếu trên bản chụp cũ (45.529 dòng) rồi bản chụp mới (45.285 dòng, sau `dbt run`)**
+
+| | Bản chụp cũ | Bản chụp mới |
+|---|---|---|
+| Net Revenue | 2.685.271,28 | 2.707.334,88 |
+| Gross Profit | 1.391.199,00 | 1.405.850,55 |
+| Men | 1.427.482,26 | 1.418.890,23 |
+| Women | 1.257.789,02 | 1.288.444,65 |
+| Năm 2025 | 624.117,64 | 615.360,21 |
+| Năm 2024 | 406.979,98 | 406.293,31 |
+
+- Bản mới: `fct_net_sales` 45.285 dòng = 45.285 `order_item_id`, ngày đặt 2019-01-21 đến 2026-10-22 (ngày cuối nằm sau ngày hôm nay, củng cố nhận định dữ liệu mô phỏng). Power BI sau Refresh khớp SQL (Men + Women, 2025, 2024, tổng).
+- `dbt run` `PASS=2` (45,3 nghìn dòng; 29,1 nghìn dòng). `dbt test` `PASS=11 TOTAL=11`: gồm cả `relationships` của `fct_net_sales_inc` vì nó đụng tới `dim_products`.
+- Chi phí: Cell 2 billed 20 MB (2 bảng), Cell 3 billed 10 MB (1 bảng). Power BI Import mode không tốn byte khi lọc và bấm slicer.
+
+**Chỗ dễ nhầm**
+- Slicer vừa chọn mà Matrix chưa đổi: chờ vài giây rồi mới kết luận (chụp ảnh quá sớm sẽ thấy số cũ).
+- `[7:6]` trong lỗi BigQuery là dòng 7, cột 6 của câu SQL (chỗ dấu backtick mở bị thiếu dấu đóng), không phải dòng trong cell.
+
+**Ôn code cuối ngày**
+- `job = client.query(sql, job_config=cfg)`: gửi job lên BigQuery và trả `job` ngay, không chờ; `job` là "phiếu theo dõi", chưa phải kết quả.
+- `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=max_mb * 1024 * 1024)`: bỏ qua cache (không xóa gì) để `processed` và `billed` phản ánh lần chạy thật; nhân `1024 * 1024` đổi MB sang byte.
+
+**Điều mình chưa chắc**
+- Nguyên nhân thật của việc doanh thu 2025 đổi (đổi trạng thái đơn hay xóa đơn); chưa so id giữa hai bản chụp.
+- Chi phí thật của 11 test và của Refresh Power BI (3 bảng, có thể billed tối thiểu 10 MB mỗi bảng).
+
+**Cần ôn lại đầu ngày sau:** (1) `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua; (2) `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó; (3) test dbt kiểm cấu trúc (`unique`, `not_null`, `accepted_values`, `relationships`), `dbt run` PASS chỉ là SQL chạy được, cả hai không đối chiếu giá trị với nguồn.

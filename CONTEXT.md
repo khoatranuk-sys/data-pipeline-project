@@ -46,6 +46,7 @@
 - Cấu trúc dbt (từ Tuần 4 Ngày 3): thêm `bi_dbt/models/marts/fct_net_sales_inc.sql` (`materialized='incremental'`, `unique_key='order_item_id'`, `incremental_strategy='merge'`, lọc `status = 'Complete'` và từ lần chạy thứ hai chỉ lấy `order_date >= max(order_date) trong bảng - 3 ngày`) và 4 test mới cho model này trong `_marts__models.yml` (`order_item_id`: `unique`, `not_null`; `product_id`: `not_null`, `relationships`). Lệnh dùng: `dbt run --select fct_net_sales_inc` (lần đầu `CREATE TABLE`, các lần sau `MERGE`; không dùng `--full-refresh` trừ khi muốn dựng lại cả bảng) và `dbt test --select fct_net_sales_inc`. Không comment `--` có dấu ngoặc nhọn trong file SQL vì Jinja vẫn xử lý. Notebook: `Python/Week 4/Day3.ipynb` (sửa lại nếu bạn đặt tên khác).
 - Cấu trúc dbt (từ Tuần 4 Ngày 5): thêm `bi_dbt/models/marts/dim_date.sql` (`materialized='table'`, tạo bằng `generate_date_array`, không đọc bảng nguồn, 3.287 dòng từ 2019-01-01 đến 2027-12-31; cột `date_day`, `year_number`, `quarter_number`, `quarter_name`, `month_number`, `month_name`, `year_month`, `weekday_number` (Monday = 1), `weekday_name`) và 3 test mới trong `_marts__models.yml` (`dim_date.date_day`: `unique`, `not_null`; `fct_net_sales.order_date`: `relationships` sang `dim_date.date_day`). Lệnh dùng: `dbt run --select dim_date` và `dbt test --select dim_date fct_net_sales`. Notebook: `Python/Week 4/Day5.ipynb`.
 - Power BI (từ Tuần 4 Ngày 5): thêm bảng `dbt_dev.dim_date` (Import), quan hệ `fct_net_sales.order_date` (nhiều) → `dim_date.date_day` (một), Single, cùng với quan hệ `product_id` đã có. Tắt Auto date/time (File → Options and settings → Options → Current File → Data Load). Ẩn cột khóa trong fact (chuột phải cột → Hide; chọn nhiều cột bằng Ctrl) và `month_number`, `weekday_number` trong `dim_date`.
+- Power BI (từ Tuần 5 Ngày 1): thêm 4 measure trong bảng `fct_net_sales`: `Net Revenue Men = CALCULATE([Net Revenue], dim_products[department] = "Men")`, `Net Revenue 2025 = CALCULATE([Net Revenue], dim_date[year_number] = 2025)`, `Net Revenue All Products = CALCULATE([Net Revenue], REMOVEFILTERS(dim_products))`, `Revenue % of Total = DIVIDE([Net Revenue], [Net Revenue All Products])`. Đây là measure để học, cố định giá trị Men hoặc năm 2025. Trang báo cáo có slicer `dim_date[year_number]`, 2 Card và 1 Matrix theo `department`. Notebook: `Python/Week 5/Day1.ipynb` (Cell 1 định nghĩa `client`, `mb`, `stats`; Cell 2 đối chiếu theo department và năm 2025; Cell 3 tổng của `fct_net_sales`).
 
 ## 5. Chi phí và an toàn
 
@@ -65,6 +66,7 @@
 - dbt test (từ Tuần 4 Ngày 1): mỗi test là một query gửi lên BigQuery, billed tối thiểu 10 MB mỗi bảng được đọc (`relationships` đọc 2 bảng); mỗi query bị chặn bởi `maximum_bytes_billed: 1000000000` trong `profiles.yml`. Chạy test không tạo bảng. Chi phí cả buổi chưa đo (ước tính vài trăm MB, dưới 0,01 USD).
 - Chi phí thật của dbt (đo ngày 14/10/2026 bằng `INFORMATION_SCHEMA.JOBS`, nhận ra query dbt nhờ chú thích `/* {"app": "dbt"` ở đầu query): `dbt test` ngày 13/10 gồm 15 query, tổng 90 MB billed (query chạy lại giống hệt thì lấy từ cache, billed 0). `dbt docs generate` gửi 2 query catalog (mỗi dataset một query, mỗi query đọc 5 bảng hệ thống, processed 40 MB, billed 50 MB), tổng 100 MB mỗi lần và không dùng cache; chạy 2 lần trong ngày 14/10. `dbt docs serve` không gọi BigQuery. `dbt compile` không gửi query. Chỉ chạy `docs generate` khi mô tả hoặc cấu trúc đã đổi.
 - dbt test (Tuần 4 Ngày 5): `dbt run --select dim_date` báo `CREATE TABLE (3.3k rows, 0 processed)`, không quét byte. `dbt test --select dim_date fct_net_sales` chạy 7 test (chi phí chưa đo bằng `INFORMATION_SCHEMA.JOBS`, ước tính dưới 100 MB). Query đọc hai bảng (Cell 3, Cell 4) billed 20 MB, một bảng nhỏ (Cell 2) billed 10 MB (processed 0,03 MB): ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng" (mới vài lần đo, chưa có tài liệu xác nhận).
+- Tuần 5 Ngày 1: `dbt run --select dim_products fct_net_sales` (`PASS=2`, `CREATE TABLE` 45,3 nghìn dòng 10,5 MiB và 29,1 nghìn dòng 2,5 MiB) rồi `dbt test --select dim_products fct_net_sales dim_date` (`PASS=11 TOTAL=11`, gồm cả test `relationships` của `fct_net_sales_inc` vì nó đụng tới `dim_products`). Cell 2 billed 20 MB (hai bảng), Cell 3 billed 10 MB (một bảng). Chi phí của 11 test và của Refresh Power BI chưa đo.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -244,10 +246,17 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Chưa làm**: chưa có `dim_users` (source `users` đã khai báo, chưa có model).
   - **Ôn Python cuối ngày**: 3 câu Python + 3 câu nội dung. Cần ôn: `df = job.result().to_dataframe()` (dòng này chờ job rồi đưa kết quả vào DataFrame, không gửi job; `df` là DataFrame trong bộ nhớ, không phải table ở BigQuery; `df` chỉ chứa dòng kết quả, byte nằm ở `job`); `iterrows()` đưa ra cặp (nhãn, cả một dòng); `relationships` tìm giá trị CÓ trong fact nhưng KHÔNG có trong dimension (không phải NULL của fact); dòng không khớp hiện thành (Blank) trong ma trận, Total vẫn đủ nên không có lỗi đỏ; processed nhỏ vì query chỉ đọc cột cần (không phải vì bảng ít cột); bộ lọc đi một chiều từ dimension sang fact, fact là chỗ hai bộ lọc giao nhau (AND), không truyền bộ lọc giữa hai dimension.
   - **Checklist Excel**: xong việc "Chuẩn hóa mô hình star schema trong Power BI"; Tuần 4 là 5/7, tổng 34/69.
+  - **Tuần 5, Ngày 1**: DAX `CALCULATE` và filter context, rồi chạy trọn vòng nguồn đến Power BI. Notebook `Python/Week 5/Day1.ipynb`.
+  - **`CALCULATE`**: tính một biểu thức trong filter context đã bị sửa. Filter trong `CALCULATE` ghi đè filter cũ **trên cùng cột** (từ slicer hoặc từ dòng bảng); filter ở cột khác vẫn đi qua. `Net Revenue Men` hiện cùng số ở dòng Women vì `department = "Men"` thay `department = Women`; khi chọn 2024 nó chỉ là Men của 2024. `REMOVEFILTERS(dim_products)` chỉ gỡ filter đi từ `dim_products`, filter năm (từ `dim_date`) vẫn giữ, nên `Revenue % of Total` có mẫu số là tổng của năm đang chọn.
+  - **Đối chiếu bản chụp cũ** (45.529 dòng, trước `dbt run`): Men 1.427.482,26; Women 1.257.789,02; 2025: 321.889,79 + 302.227,85 = 624.117,64; 2024: 216.353,37 + 190.626,61 = 406.979,98. Đều khớp SQL.
+  - **Vòng đầu-cuối** (nguồn, `dbt run`, `dbt test`, SQL, Refresh, so số): đạt. Bản chụp mới: `fct_net_sales` 45.285 dòng = 45.285 `order_item_id`, doanh thu 2.707.334,88, lợi nhuận 1.405.850,55, ngày đặt từ 2019-01-21 đến 2026-10-22. Men 1.418.890,23; Women 1.288.444,65; 2025: 323.181,07 + 292.179,14 = 615.360,21; 2024: 215.360,70 + 190.932,61 = 406.293,31. Power BI sau Refresh khớp SQL.
+  - **Nguồn public đổi**: doanh thu 2025 đổi từ 624.117,64 sang 615.360,21 dù là năm đã qua, nên tập đơn `Complete` của năm cũ vẫn thay đổi. `dbt test` báo 11/11 PASS vẫn không phát hiện, vì test kiểm cấu trúc chứ không đối chiếu với nguồn. Ngày đặt cuối 2026-10-22 nằm sau ngày hôm nay (19/10/2026), củng cố nhận định dữ liệu là mô phỏng. Chưa so id giữa hai bản chụp, nguyên nhân vẫn là giả thuyết.
+  - **Ôn cuối ngày**: 5 câu (3 nội dung, 2 Python), bỏ câu thứ 6 vì đã nắm chắc. Câu 1 thiếu ý "filter ở cột khác vẫn đi qua" (đã bổ sung). Câu 3 đúng ý chính nhưng cần chính xác hơn: test không chỉ bắt NULL mà kiểm `unique`, `not_null`, `accepted_values`, `relationships`; `dbt run` PASS chỉ nghĩa là SQL chạy được.
+  - **Checklist Excel**: tick việc "DAX: CALCULATE, filter context" của Tuần 5 (kiểm tra lại tên dòng và số tổng hiển thị trong file).
 
 ## 8. Đang làm
 
-- **Tuần 4** (đang làm), 7 việc theo checklist: viết test dbt (xong Ngày 1); sinh dbt docs (xong Ngày 2); viết incremental model (xong Ngày 3); viết measure và DAX cơ bản (xong Ngày 4); chuẩn hóa star schema trong Power BI (xong Ngày 5, thêm `dim_date`); còn lại cập nhật CV và LinkedIn; viết mục kinh nghiệm 6 năm BI logistics có số liệu. Tùy chọn: dbt snapshot (SCD Type 2).
+- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1). Còn lại theo checklist: time intelligence (cần quyết định Mark as date table), thiết kế dashboard, tối ưu hiệu năng, hoàn thiện Project 1, chốt ngách và dữ liệu thật.
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -326,6 +335,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Kéo `dim_date` sang `fct_net_sales` ra "One to many"**: không sai, chỉ là cách đọc theo bảng From. Kiểm tra bằng Manage relationships: phía một là dimension, Single, active.
 - **Tuần 4** (hoàn tất 5/5): viết test dbt, sinh dbt docs, viết incremental model, viết measure và DAX cơ bản, chuẩn hóa star schema trong Power BI (thêm `dim_date`). Hai việc CV và LinkedIn đã chuyển về Tuần 8. Tùy chọn: dbt snapshot (SCD Type 2).
 - **Tuần 5** (tiếp theo): Power BI nâng cao (DAX: CALCULATE, filter context; time intelligence; thiết kế dashboard; tối ưu hiệu năng), hoàn thiện Project 1, chốt ngách và dữ liệu thật.
+- **`BadRequest: Unclosed identifier literal at [7:6]`** khi chạy SQL trong notebook: dòng `FROM` thiếu dấu backtick đóng quanh tên bảng (`[dòng:cột]` chỉ vị trí trong câu SQL, không phải trong cell). Lỗi dừng ở bước kiểm tra cú pháp nên không tốn tiền. Cùng cell còn có chữ `department` gõ thừa (`departmnent`); lỗi gõ tên cột chỉ lộ sau khi lỗi dấu backtick được sửa.
+- **Power BI: Matrix chưa đổi sau khi chọn slicer**: thành phần cập nhật không cùng lúc, chụp ảnh quá sớm sẽ thấy số cũ. Chờ vài giây rồi mới đối chiếu (đã gặp ở Data Studio, giờ gặp ở Power BI).
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -367,6 +378,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 4, Ngày 4: số nào đưa vào dashboard hoặc đối chiếu phải là explicit measure (đặt tên đúng, định dạng một lần), không dùng implicit measure. Tỷ lệ luôn là `DIVIDE([tử], [mẫu])` của hai tổng, không lưu tỷ lệ từng dòng thành cột. Measure đặt trong bảng `fct_net_sales`; đối chiếu với SQL trên cùng bảng mart và cùng bản chụp (không Refresh giữa chừng).
 - Tuần 4, Ngày 5: `dim_date` làm bằng dbt (mart `table`, không đọc bảng nguồn), phủ 2019-2027, có `unique` + `not_null` trên `date_day` và `relationships` từ `fct_net_sales.order_date`. Mọi trục thời gian trong Power BI dùng `dim_date`, tắt Auto date/time. Ẩn cột khóa và cột thô trong fact, giữ lại measure; không đưa implicit measure vào dashboard. Lọc đi một chiều (Single) từ dimension sang fact; không dùng quan hệ hai chiều. Khi thêm bảng vào Power BI chỉ nạp bảng mới, không Refresh `fct_net_sales` giữa lúc đang đối chiếu số.
 - Tuần 4: việc CV và LinkedIn dời về Tuần 8 (Portfolio), để các tuần kỹ thuật không bị cắt ngang. Khi tới Tuần 8 làm gộp, dùng các số đo từ Project 1 và 2.
+- Tuần 5, Ngày 1: filter ghi đè khi dùng `CALCULATE` là có chủ ý; measure mẫu `Net Revenue Men`, `Net Revenue 2025` chỉ để học, không đưa vào dashboard thật. Mẫu số "tổng" dùng `REMOVEFILTERS` trên đúng bảng cần gỡ. Số cũ (45.529 dòng) không còn: `dbt run` đã ghi đè `fct_net_sales` bằng bản chụp mới (45.285 dòng). Muốn so sánh số giữa các ngày thì lưu bản chụp có đánh ngày hoặc dùng nguồn không đổi.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -393,6 +405,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Có thêm `dim_users` (từ source `users`) vào star schema không, hay để Tuần 5?
 - Vì sao lần `dbt run --select dim_date` đầu không tìm thấy model dù đã `Found 8 models` (nghi tên file, chưa xác nhận)?
 - Chi phí thật của `dbt test --select dim_date fct_net_sales` (7 test) chưa đo bằng `INFORMATION_SCHEMA.JOBS`.
+- Vì sao doanh thu năm 2025 đổi (624.117,64 sang 615.360,21) khi năm đã qua? Giả thuyết: nguồn mô phỏng đổi trạng thái đơn cũ. Chưa kiểm tra id (đã chọn bỏ qua, không làm).
+- Mỗi lần Refresh Power BI đọc bao nhiêu byte (3 bảng), và 11 test dbt hôm nay tốn bao nhiêu? Chưa đo.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
@@ -413,5 +427,5 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Làm sao xóa khỏi bảng incremental các dòng không còn khớp điều kiện ở nguồn (đơn Complete sang Returned)? Chưa thử.
 - Thí nghiệm xóa 2 ngày cuối của `fct_net_sales_inc` rồi `dbt run` để thấy `MERGE` thêm dòng mới: chưa làm.
 - Đầu mỗi ngày mới, ngay sau phần mục đích của ngày: đưa bản tổng quan từ đầu đến cuối (dạng bảng hoặc sơ đồ luồng). Mỗi bước theo thứ tự gồm: bước đó làm gì, chạy ở đâu (VS Code, Anaconda Prompt, BigQuery web, Power BI), và kết quả hiện ra là gì (output, file, bảng được tạo). Sau đó mới vào hướng dẫn chi tiết từng bước. Áp dụng từ Tuần 5 Ngày 1.
-
+- Ôn cuối ngày: **không hỏi lại** những dòng code và khái niệm mình đã trả lời đúng trên khoảng 70% số lần; dành chỗ cho câu mới. Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn.
 
