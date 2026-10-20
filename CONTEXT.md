@@ -48,6 +48,8 @@
 - Power BI (từ Tuần 4 Ngày 5): thêm bảng `dbt_dev.dim_date` (Import), quan hệ `fct_net_sales.order_date` (nhiều) → `dim_date.date_day` (một), Single, cùng với quan hệ `product_id` đã có. Tắt Auto date/time (File → Options and settings → Options → Current File → Data Load). Ẩn cột khóa trong fact (chuột phải cột → Hide; chọn nhiều cột bằng Ctrl) và `month_number`, `weekday_number` trong `dim_date`.
 - Power BI (từ Tuần 5 Ngày 1): thêm 4 measure trong bảng `fct_net_sales`: `Net Revenue Men = CALCULATE([Net Revenue], dim_products[department] = "Men")`, `Net Revenue 2025 = CALCULATE([Net Revenue], dim_date[year_number] = 2025)`, `Net Revenue All Products = CALCULATE([Net Revenue], REMOVEFILTERS(dim_products))`, `Revenue % of Total = DIVIDE([Net Revenue], [Net Revenue All Products])`. Đây là measure để học, cố định giá trị Men hoặc năm 2025. Trang báo cáo có slicer `dim_date[year_number]`, 2 Card và 1 Matrix theo `department`. Notebook: `Python/Week 5/Day1.ipynb` (Cell 1 định nghĩa `client`, `mb`, `stats`; Cell 2 đối chiếu theo department và năm 2025; Cell 3 tổng của `fct_net_sales`).
 
+- Power BI (từ Tuần 5 Ngày 2): thêm 3 measure trong bảng `fct_net_sales` (tên trong mô hình là `ytd`, `ly`, `YoY %`): `ytd = IF(ISBLANK([Net Revenue]), BLANK(), TOTALYTD([Net Revenue], dim_date[date_day]))`; `ly` dùng `VAR LastData = CALCULATE(MAX(fct_net_sales[order_date]), REMOVEFILTERS(dim_date))` rồi `CALCULATE([Net Revenue], SAMEPERIODLASTYEAR(dim_date[date_day]), dim_date[date_day] <= EDATE(LastData, -12))`; `YoY % = DIVIDE([Net Revenue] - [ly], [ly])`. Trang báo cáo thêm Matrix theo `year_month` (4 measure) cạnh slicer `year_number`; slicer đã lọc `Net Revenue` is not blank nên không còn năm 2027. Notebook: `Python/Week 5/Day2.ipynb` (Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 SQL tham chiếu 2024 và 2025: doanh thu tháng, YTD, cùng tháng năm trước, YoY; Cell 3 doanh thu cùng kỳ đến ngày dữ liệu cuối).
+
 ## 5. Chi phí và an toàn
 
 - Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
@@ -67,6 +69,7 @@
 - Chi phí thật của dbt (đo ngày 14/10/2026 bằng `INFORMATION_SCHEMA.JOBS`, nhận ra query dbt nhờ chú thích `/* {"app": "dbt"` ở đầu query): `dbt test` ngày 13/10 gồm 15 query, tổng 90 MB billed (query chạy lại giống hệt thì lấy từ cache, billed 0). `dbt docs generate` gửi 2 query catalog (mỗi dataset một query, mỗi query đọc 5 bảng hệ thống, processed 40 MB, billed 50 MB), tổng 100 MB mỗi lần và không dùng cache; chạy 2 lần trong ngày 14/10. `dbt docs serve` không gọi BigQuery. `dbt compile` không gửi query. Chỉ chạy `docs generate` khi mô tả hoặc cấu trúc đã đổi.
 - dbt test (Tuần 4 Ngày 5): `dbt run --select dim_date` báo `CREATE TABLE (3.3k rows, 0 processed)`, không quét byte. `dbt test --select dim_date fct_net_sales` chạy 7 test (chi phí chưa đo bằng `INFORMATION_SCHEMA.JOBS`, ước tính dưới 100 MB). Query đọc hai bảng (Cell 3, Cell 4) billed 20 MB, một bảng nhỏ (Cell 2) billed 10 MB (processed 0,03 MB): ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng" (mới vài lần đo, chưa có tài liệu xác nhận).
 - Tuần 5 Ngày 1: `dbt run --select dim_products fct_net_sales` (`PASS=2`, `CREATE TABLE` 45,3 nghìn dòng 10,5 MiB và 29,1 nghìn dòng 2,5 MiB) rồi `dbt test --select dim_products fct_net_sales dim_date` (`PASS=11 TOTAL=11`, gồm cả test `relationships` của `fct_net_sales_inc` vì nó đụng tới `dim_products`). Cell 2 billed 20 MB (hai bảng), Cell 3 billed 10 MB (một bảng). Chi phí của 11 test và của Refresh Power BI chưa đo.
+- Tuần 5 Ngày 2: chỉ có Cell 2 và Cell 3 đọc `fct_net_sales` (một bảng): Cell 3 processed 0,69 MB, billed 10 MB. Power BI Import mode không tốn byte khi tạo measure, lọc, bấm slicer. Không `dbt run`, không `dbt test`, không Refresh Power BI trong ngày.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -253,10 +256,17 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Nguồn public đổi**: doanh thu 2025 đổi từ 624.117,64 sang 615.360,21 dù là năm đã qua, nên tập đơn `Complete` của năm cũ vẫn thay đổi. `dbt test` báo 11/11 PASS vẫn không phát hiện, vì test kiểm cấu trúc chứ không đối chiếu với nguồn. Ngày đặt cuối 2026-10-22 nằm sau ngày hôm nay (19/10/2026), củng cố nhận định dữ liệu là mô phỏng. Chưa so id giữa hai bản chụp, nguyên nhân vẫn là giả thuyết.
   - **Ôn cuối ngày**: 5 câu (3 nội dung, 2 Python), bỏ câu thứ 6 vì đã nắm chắc. Câu 1 thiếu ý "filter ở cột khác vẫn đi qua" (đã bổ sung). Câu 3 đúng ý chính nhưng cần chính xác hơn: test không chỉ bắt NULL mà kiểm `unique`, `not_null`, `accepted_values`, `relationships`; `dbt run` PASS chỉ nghĩa là SQL chạy được.
   - **Checklist Excel**: tick việc "DAX: CALCULATE, filter context" của Tuần 5 (kiểm tra lại tên dòng và số tổng hiển thị trong file).
+    - **Tuần 5, Ngày 2**: time intelligence trong Power BI (YTD, cùng kỳ, YoY). Notebook `Python/Week 5/Day2.ipynb`.
+  - **Measure**: `ytd`, `ly`, `YoY %` (xem mục 4). Time intelligence vẫn là `CALCULATE` đổi tập ngày; `TOTALYTD` tính lại từ đầu ở mỗi ô; BLANK coi như 0 trong phép trừ nên YoY ra −100% ở tháng chưa có dữ liệu.
+  - **Đối chiếu** (cùng bản chụp, không Refresh): 12 tháng của 2025 khớp Cell 2 ở cả 4 cột; Total 615.360,21, `ly` 406.293,31, YoY 51,46%. Năm 2026 sau khi sửa `ly` khớp Cell 3: Total `ly` 473.647,45 (cùng kỳ đến 22/10/2025), YoY 107,50%; riêng tháng 10 `ly` 37.273,31, YoY 383,57%.
+  - **Ba chỗ sai âm thầm** đã gặp và sửa: YTD tháng 11-12/2026 vẫn hiện số; YoY −100% ở hai tháng đó; Total và tháng 10/2026 so với cả năm/cả tháng của 2025 thay vì cùng kỳ. Không có lỗi đỏ nào.
+  - **Mark as date table**: bật hay tắt đều ra cùng số trên mô hình này (đã đóng câu hỏi mở).
+  - **Ôn cuối ngày**: 6 câu (3 nội dung, 3 Python), không còn hỏi lại `check` (dry run) và `job.result()` vì đã đúng hai lần. Câu 2b: kết luận đúng nhưng nhầm `LastData` đổi theo slicer (thật ra luôn là 22/10/2026). Câu 3: nhầm `max_mb=100` là một job (thật ra là tham số mặc định) và nhầm tác dụng của thiếu `return df` (thật ra `df` = `None`, trần vẫn chạy). Câu 6: nhận ra cần kiểm tháng cuối đủ ngày và số ngày có dữ liệu; chưa nêu được lý do dbt không bắt lỗi là vì lỗi nằm ở tầng DAX.
+  - **Checklist Excel**: tick việc time intelligence của Tuần 5 (mình chưa đọc được file nên bạn tự đối chiếu tên dòng và số tổng hiển thị).
 
 ## 8. Đang làm
 
-- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1). Còn lại theo checklist: time intelligence (cần quyết định Mark as date table), thiết kế dashboard, tối ưu hiệu năng, hoàn thiện Project 1, chốt ngách và dữ liệu thật.
+- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1) và time intelligence (Ngày 2). Còn lại theo checklist: thiết kế dashboard, tối ưu hiệu năng, hoàn thiện Project 1, chốt ngách và dữ liệu thật.
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -337,6 +347,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Tuần 5** (tiếp theo): Power BI nâng cao (DAX: CALCULATE, filter context; time intelligence; thiết kế dashboard; tối ưu hiệu năng), hoàn thiện Project 1, chốt ngách và dữ liệu thật.
 - **`BadRequest: Unclosed identifier literal at [7:6]`** khi chạy SQL trong notebook: dòng `FROM` thiếu dấu backtick đóng quanh tên bảng (`[dòng:cột]` chỉ vị trí trong câu SQL, không phải trong cell). Lỗi dừng ở bước kiểm tra cú pháp nên không tốn tiền. Cùng cell còn có chữ `department` gõ thừa (`departmnent`); lỗi gõ tên cột chỉ lộ sau khi lỗi dấu backtick được sửa.
 - **Power BI: Matrix chưa đổi sau khi chọn slicer**: thành phần cập nhật không cùng lúc, chụp ảnh quá sớm sẽ thấy số cũ. Chờ vài giây rồi mới đối chiếu (đã gặp ở Data Studio, giờ gặp ở Power BI).
+- **`BadRequest: Syntax error: Unexpected keyword ORDER at [16:39]`** khi chạy SQL: thừa dấu phẩy giữa `PARTITION BY` và `ORDER BY` trong `OVER (...)` (`PARTITION BY y, ORDER BY mth`). Đúng là `OVER (PARTITION BY y ORDER BY mth)`. `[dòng:cột]` tính từ dòng đầu của câu SQL (dòng ngay sau `"""` là dòng 1); lỗi dừng ở bước dry run nên không tốn tiền.
+- **Dùng tên hàm DAX trong SQL** (`DIVIDE` thay vì `SAFE_DIVIDE`): BigQuery không có `DIVIDE`; dễ lẫn khi vừa viết DAX. Sửa thành `SAFE_DIVIDE`.
+- **Measure sửa dở, số không đổi**: thanh công thức vẫn hiện ✗ và ✓ nghĩa là chưa áp dụng; phải bấm ✓ hoặc Enter. Biến `VAR` khai báo mà `RETURN` không dùng thì không có tác dụng và không báo lỗi.
+- **`TOTALYTD` ở tháng không có dữ liệu** vẫn hiện số cộng dồn đến cuối năm; **YoY −100%** vì BLANK coi như 0 trong phép trừ; **Total năm đang chạy so với cả năm trước**. Cả ba không có lỗi đỏ; kiểm bằng SQL cùng kỳ (Cell 3) và nhìn các tháng sau ngày dữ liệu cuối.
+- **Slicer `year_number` còn năm 2027**: do `dim_date` phủ đến 2027, không phải lỗi. Lọc slicer bằng `Net Revenue` is not blank.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -379,6 +394,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 4, Ngày 5: `dim_date` làm bằng dbt (mart `table`, không đọc bảng nguồn), phủ 2019-2027, có `unique` + `not_null` trên `date_day` và `relationships` từ `fct_net_sales.order_date`. Mọi trục thời gian trong Power BI dùng `dim_date`, tắt Auto date/time. Ẩn cột khóa và cột thô trong fact, giữ lại measure; không đưa implicit measure vào dashboard. Lọc đi một chiều (Single) từ dimension sang fact; không dùng quan hệ hai chiều. Khi thêm bảng vào Power BI chỉ nạp bảng mới, không Refresh `fct_net_sales` giữa lúc đang đối chiếu số.
 - Tuần 4: việc CV và LinkedIn dời về Tuần 8 (Portfolio), để các tuần kỹ thuật không bị cắt ngang. Khi tới Tuần 8 làm gộp, dùng các số đo từ Project 1 và 2.
 - Tuần 5, Ngày 1: filter ghi đè khi dùng `CALCULATE` là có chủ ý; measure mẫu `Net Revenue Men`, `Net Revenue 2025` chỉ để học, không đưa vào dashboard thật. Mẫu số "tổng" dùng `REMOVEFILTERS` trên đúng bảng cần gỡ. Số cũ (45.529 dòng) không còn: `dbt run` đã ghi đè `fct_net_sales` bằng bản chụp mới (45.285 dòng). Muốn so sánh số giữa các ngày thì lưu bản chụp có đánh ngày hoặc dùng nguồn không đổi.
+- Tuần 5, Ngày 2: so sánh cùng kỳ năm trước phải cắt `ly` ở cùng ngày-tháng với ngày dữ liệu cuối (dùng `LastData` tính bằng `REMOVEFILTERS(dim_date)`), không so năm đang chạy với cả năm trước. Measure hiển thị theo thời gian trả BLANK khi chưa có dữ liệu (`IF(ISBLANK(...))`). Giữ `dim_date` phủ đến 2027 (không rút ngắn); lọc slicer năm bằng `Net Revenue` is not blank. Không cần Mark as date table cho mô hình hiện tại (đã đo). Trước khi giao dashboard thật: kiểm `MAX(order_date)`, số ngày có dữ liệu của tháng cuối, và đối chiếu một câu SQL cùng kỳ với dòng Total.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -407,6 +423,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Chi phí thật của `dbt test --select dim_date fct_net_sales` (7 test) chưa đo bằng `INFORMATION_SCHEMA.JOBS`.
 - Vì sao doanh thu năm 2025 đổi (624.117,64 sang 615.360,21) khi năm đã qua? Giả thuyết: nguồn mô phỏng đổi trạng thái đơn cũ. Chưa kiểm tra id (đã chọn bỏ qua, không làm).
 - Mỗi lần Refresh Power BI đọc bao nhiêu byte (3 bảng), và 11 test dbt hôm nay tốn bao nhiêu? Chưa đo.
+- `EDATE(LastData, -12)` với ngày 29/02 xử lý thế nào, và `DATEADD(LastData, -1, YEAR)` có cho cùng kết quả không? Chưa thử.
+- Lọc slicer bằng measure (`Net Revenue` is not blank) có làm chậm hoặc đổi theo bộ lọc khác không? Chưa kiểm chứng.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
@@ -426,6 +444,6 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Bảng `order_items` có `shipped_at`, `delivered_at`, `returned_at` để làm cột mốc lọc incremental không (staging hiện không chọn các cột đó)? Chưa kiểm tra.
 - Làm sao xóa khỏi bảng incremental các dòng không còn khớp điều kiện ở nguồn (đơn Complete sang Returned)? Chưa thử.
 - Thí nghiệm xóa 2 ngày cuối của `fct_net_sales_inc` rồi `dbt run` để thấy `MERGE` thêm dòng mới: chưa làm.
-- Đầu mỗi ngày mới, ngay sau phần mục đích của ngày: đưa bản tổng quan từ đầu đến cuối (dạng bảng hoặc sơ đồ luồng). Mỗi bước theo thứ tự gồm: bước đó làm gì, chạy ở đâu (VS Code, Anaconda Prompt, BigQuery web, Power BI), và kết quả hiện ra là gì (output, file, bảng được tạo). Sau đó mới vào hướng dẫn chi tiết từng bước. Áp dụng từ Tuần 5 Ngày 1.
+- Đầu mỗi ngày mới, ngay sau phần mục đích của ngày: đưa bản tổng quan từ đầu đến cuối gồm **cả hai**: (1) bảng, và (2) **sơ đồ luồng dạng hình** (vẽ trong chat, theo hàng dọc, mỗi hàng gồm: chạy ở đâu, bước làm gì, kết quả hiện ra). Bản chữ hoặc ASCII bị vỡ dòng trên màn hình của mình nên không dùng thay cho hình. Mỗi bước theo thứ tự gồm: bước đó làm gì, chạy ở đâu (VS Code, Anaconda Prompt, BigQuery web, Power BI), và kết quả hiện ra là gì (output, file, bảng được tạo). Sau đó mới vào hướng dẫn chi tiết từng bước. Áp dụng từ Tuần 5 Ngày 1.
 - Ôn cuối ngày: **không hỏi lại** những dòng code và khái niệm mình đã trả lời đúng trên khoảng 70% số lần; dành chỗ cho câu mới. Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn.
-
+Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó; `dry_run=True` chỉ kiểm tra và ước lượng, không cần `job.result()`. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn và không chạm tầng DAX; `LastData` luôn là ngày cuối của cả bảng, không đổi theo slicer; `def` chỉ định nghĩa hàm, `max_mb=100` là tham số mặc định, thiếu `return` thì `None`.

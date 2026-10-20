@@ -819,3 +819,47 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Chi phí thật của 11 test và của Refresh Power BI (3 bảng, có thể billed tối thiểu 10 MB mỗi bảng).
 
 **Cần ôn lại đầu ngày sau:** (1) `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua; (2) `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó; (3) test dbt kiểm cấu trúc (`unique`, `not_null`, `accepted_values`, `relationships`), `dbt run` PASS chỉ là SQL chạy được, cả hai không đối chiếu giá trị với nguồn.
+
+## Tuần 5 - Ngày 2: time intelligence (YTD, cùng kỳ, YoY)
+
+**Ý chính (4 ý cần nhớ)**
+- Hàm time intelligence vẫn là `CALCULATE`: chỉ đổi tập ngày của filter (cả năm tới giờ, hoặc lùi một năm). Filter ngày của một dòng Matrix là cả tập ngày của tháng đó, không phải một giá trị. Các filter trong `CALCULATE` trên cùng cột `date_day` giao nhau (AND).
+- `TOTALYTD` tính lại từ đầu ở mỗi ô (từ 01/01 đến cuối kỳ của dòng), không cộng nối tiếp từ dòng trên. Fact hết dữ liệu mà lịch vẫn dài thì tháng 11, 12 vẫn hiện YTD của tháng cuối có dữ liệu.
+- Trong phép trừ của DAX, BLANK coi như 0: `[Net Revenue] - [ly]` thành `0 - ly` nên YoY ra −100% dù doanh thu chỉ là chưa có dữ liệu. Sửa ở `ly` (cho `ly` trống) thì `DIVIDE` trả trống.
+- Mark as date table: bật hay tắt đều ra cùng số trên mô hình này (kiểm bằng 4 cột Matrix 2025). Kết luận chỉ cho mô hình này, không phải quy tắc chung.
+
+**3 measure** (bảng `fct_net_sales`; trong mô hình đặt tên `ytd`, `ly`, `YoY %`)
+
+| Measure | DAX | Tương đương SQL |
+|---|---|---|
+| ytd | `IF(ISBLANK([Net Revenue]), BLANK(), TOTALYTD([Net Revenue], dim_date[date_day]))` | `SUM(rev) OVER (PARTITION BY y ORDER BY mth)` |
+| ly | `VAR LastData = CALCULATE(MAX(fct_net_sales[order_date]), REMOVEFILTERS(dim_date))` rồi `CALCULATE([Net Revenue], SAMEPERIODLASTYEAR(dim_date[date_day]), dim_date[date_day] <= EDATE(LastData, -12))` | `LAG(rev) OVER (PARTITION BY mth ORDER BY y)`, cắt đuôi cùng ngày-tháng |
+| YoY % | `DIVIDE([Net Revenue] - [ly], [ly])` | `SAFE_DIVIDE(rev - ly, ly)` |
+
+- `LastData` luôn là ngày cuối có dữ liệu của cả bảng (22/10/2026) nhờ `REMOVEFILTERS(dim_date)`, không đổi theo slicer. `EDATE(LastData, -12)` lùi 12 tháng (một năm) thành 22/10/2025, khớp với `SAMEPERIODLASTYEAR` lùi một năm. `<= EDATE(...)` là bộ lọc "cắt đuôi": chỉ cắt được khi tập ngày sau khi lùi một năm vượt qua mốc (như 2026 lùi thành 2025); chọn 2025 thì `ly` là cả 2024 và mốc không có tác dụng.
+- Ở dòng 2026-10, `SAMEPERIODLASTYEAR` ra 01/10 đến 31/10/2025, cắt đuôi còn 01/10 đến 22/10/2025.
+
+**Đối chiếu SQL và Power BI** (cùng bản chụp, không Refresh)
+- Năm 2025 (Cell 2): 12 tháng khớp cả `net_revenue`, `ytd`, `ly`, `yoy` (làm tròn). Total: 615.360,21 / ly 406.293,31 / YoY 51,46%. `ytd` tháng 12 bằng tổng năm.
+- Năm 2026 sau khi sửa `ly` (Cell 3): từ 1/1 đến 22/10, 2026 là 982.813,17 và 2025 là 473.647,45; riêng tháng 10 cùng kỳ: 2026 là 180.243,98, 2025 là 37.273,31. Matrix 2026: Total `ly` 473.647,45, YoY 107,50%; dòng 2026-10 `ly` 37.273,31, YoY 383,57%. Tháng 11 và 12/2026 không còn hiện (mọi measure trống).
+- YoY lớn (143% ở tháng 9/2026, 383% ở tháng 10) là do dữ liệu mô phỏng tăng mạnh, không phải lỗi DAX.
+- Chi phí: Cell 3 processed 0,69 MB, billed 10 MB (một bảng). Power BI Import mode không tốn byte khi tạo measure, lọc, bấm slicer.
+
+**Ba chỗ sai âm thầm đã gặp** (không có lỗi đỏ)
+- `ytd` tháng 11 và 12/2026 hiện 982.813,17 dù Net Revenue trống; YoY −100% ở hai tháng đó.
+- Total 2026 so với cả năm 2025 (615.360,21) nên YoY chỉ 59,71%; so đúng cùng kỳ là 107,50%.
+- Tháng 10/2026 chưa trọn bị so với cả tháng 10/2025.
+
+**Slicer còn năm 2027:** do `dim_date` phủ 2019 đến 2027. Không rút ngắn `dim_date`. Kéo measure `Net Revenue` vào filter của slicer, chọn is not blank (đã chạy được).
+
+**Ôn code Python cuối ngày**
+- `def stats(sql, max_mb=100):` chỉ định nghĩa hàm, chưa chạy query. `max_mb=100` là tham số có giá trị mặc định (gọi `stats(sql, 500)` thì đổi). `return df` đưa kết quả về nơi gọi; thiếu nó thì `df` = `None`, `print(len(df))` báo `TypeError`, còn trần 100 MB và dòng in byte vẫn chạy.
+- `QueryJobConfig(dry_run=True, ...)` rồi `client.query(...)`: BigQuery chỉ kiểm tra cú pháp và ước lượng byte, không đọc dữ liệu, không tốn tiền; không cần `job.result()`. Ở `stats` thì `job.result()` chờ job xong rồi lấy kết quả, và phải đứng trước khi đọc byte.
+
+**Điều mình chưa chắc**
+- Ngày 29/02 với `EDATE(..., -12)` (chưa thử; dữ liệu hiện chưa rơi vào ngày này).
+- `DATEADD(LastData, -1, YEAR)` có cho cùng kết quả với `EDATE` không (chưa so).
+- Filter slicer bằng measure có làm slicer chậm hoặc đổi theo bộ lọc khác không.
+- Chi phí thật của Refresh Power BI (3 bảng) và của các lần `dbt test` (vẫn chưa đo).
+
+**Cần ôn lại đầu ngày sau:** (1) `LastData` luôn là 22/10/2026 nhờ `REMOVEFILTERS`, không đổi theo slicer; mốc cắt luôn là 22/10/2025; (2) filter ngày của một dòng tháng là tập 31 ngày, các filter trong `CALCULATE` giao nhau; (3) `TOTALYTD` tính lại từ đầu mỗi ô; BLANK trong phép trừ coi như 0; (4) `relationships` tìm khóa fact không có trong dim (không kiểm NULL); `dbt test` không chạm tầng DAX; (5) `def` chỉ định nghĩa, tham số mặc định, thiếu `return` thì `None`.
