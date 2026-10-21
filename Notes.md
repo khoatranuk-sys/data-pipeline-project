@@ -863,3 +863,50 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Chi phí thật của Refresh Power BI (3 bảng) và của các lần `dbt test` (vẫn chưa đo).
 
 **Cần ôn lại đầu ngày sau:** (1) `LastData` luôn là 22/10/2026 nhờ `REMOVEFILTERS`, không đổi theo slicer; mốc cắt luôn là 22/10/2025; (2) filter ngày của một dòng tháng là tập 31 ngày, các filter trong `CALCULATE` giao nhau; (3) `TOTALYTD` tính lại từ đầu mỗi ô; BLANK trong phép trừ coi như 0; (4) `relationships` tìm khóa fact không có trong dim (không kiểm NULL); `dbt test` không chạm tầng DAX; (5) `def` chỉ định nghĩa, tham số mặc định, thiếu `return` thì `None`.
+## Tuần 5 - Ngày 3: thiết kế dashboard trong Power BI
+
+**Ý chính (4 ý cần nhớ)**
+- Dashboard trả lời 3 câu hỏi của người xem (doanh thu và lợi nhuận năm nay so cùng kỳ, doanh thu theo tháng, danh mục nào bán nhiều và biên bao nhiêu), không phải càng nhiều biểu đồ càng tốt. Số nào lên dashboard cũng phải khớp một câu SQL độc lập.
+- Measure đơn giản vẫn sai âm thầm: `Avg Order Value` ra 61,00 trong khi SQL ra 88,68 (982.813,17 chia 11.083 đơn); không có lỗi đỏ vì DAX chỉ kiểm cú pháp, không kiểm nghĩa. Sai ngay cả khi không bấm gì, nên nguyên nhân không phải interaction. Nghi mẫu số là số dòng thay vì số đơn (suy luận, chưa xem công thức cũ). Phát hiện được nhờ Cell 3 (SQL độc lập), không nhờ bấm tháng.
+- Bộ lọc bấm trên biểu đồ làm thu hẹp tập dòng của fact (không ghi đè giá trị). `MAX(order_date)` tính trên tập dòng đã thu hẹp nên thẻ `Data Through` đổi từ 22/10 thành 31/7 khi bấm 2026-07. Sửa: bọc trong `CALCULATE` với `REMOVEFILTERS(dim_date)` và `REMOVEFILTERS(dim_products)`; thêm Edit interactions tắt lọc từ biểu đồ đường lên các thẻ.
+- Top N lọc rồi mới sắp xếp, theo measure `Net Revenue` tính trong filter context hiện tại, nên đổi department thì cả danh sách 10 category đổi (không chỉ thứ tự). Tổng 10 category (671.156,85) chỉ bằng khoảng 68,3% thẻ KPI (982.813,17); phải ghi rõ "Top 10" ở tiêu đề.
+
+**2 measure mới** (bảng `fct_net_sales`)
+
+| Measure | Công thức DAX | Tương đương SQL |
+|---|---|---|
+| Avg Order Value | `DIVIDE([Net Revenue], [Orders])` | `SAFE_DIVIDE(SUM(sale_price), COUNT(DISTINCT order_id))` |
+| Data Through | `CALCULATE(MAX(fct_net_sales[order_date]), REMOVEFILTERS(dim_date), REMOVEFILTERS(dim_products))` | `MAX(order_date)` |
+
+**Trang `Overview`**: text box tiêu đề kèm ghi chú dữ liệu mô phỏng và đơn `Complete`; thẻ `Data Through`; slicer `year_number` (kiểu Between 2026 đến 2026) và slicer `department`; 6 thẻ (Net Revenue, Gross Profit, Gross Margin %, Order, Avg Order Value, YoY %); biểu đồ đường `Net Revenue` và `ly` theo `year_month`; biểu đồ cột Top 10 category theo `Net Revenue`; bảng category (Net Revenue, Gross Profit, Gross Margin %).
+
+**Đối chiếu SQL và Power BI** (cùng bản chụp, không Refresh, năm 2026, chưa lọc department)
+
+| | SQL | Power BI |
+|---|---|---|
+| Net Revenue | 982.813,17 | 982.813,17 |
+| Gross Profit | 510.954,59 | 510.954,59 |
+| Margin | 0,5199 | 52,0% |
+| Orders | 11.083 | 11.083 |
+| Avg Order Value | 88,68 | 88,68 (sau khi sửa; trước đó 61,00) |
+| Data Through | 2026-10-22 | 22/10/2026 |
+
+- Số ngày có dữ liệu năm 2026: 295 (đủ từ 1/1 đến 22/10). Top 10 category của Cell 2 khớp biểu đồ cột và bảng ở các dòng đã so; Jeans: Men 64.810,90 + Women 43.527,38 = 108.338,28.
+- Men + Women: Orders 5.506 + 5.577 = 11.083, doanh thu 513.220,25 + 469.592,92 = 982.813,17. Vậy năm 2026 mỗi đơn chỉ thuộc một department (chưa kiểm các năm khác).
+- Chi phí: Cell 2 processed 1,95 MB, billed 20 MB (2 bảng); Cell 3 processed 1,38 MB, billed 10 MB (1 bảng). Power BI Import mode không tốn byte khi tạo biểu đồ, lọc, bấm.
+
+**Chỗ dễ nhầm**
+- Số của thẻ đổi khi bấm tháng là hành vi bình thường (cross-filtering), có ở cả measure đúng lẫn sai; không dùng nó để biết measure đúng hay sai.
+- Thẻ "ngày dữ liệu cuối" phải dùng `REMOVEFILTERS`, nếu không người xem đọc nhầm là dữ liệu chỉ đến tháng đã bấm.
+- Biểu đồ cột Top 10 không phải tổng doanh thu, nhìn dễ tưởng toàn bộ.
+- Bảng category mặc định xếp theo bảng chữ cái; bấm tiêu đề cột `Net Revenue` để xếp giảm dần.
+
+**Ôn code cuối ngày**
+- `df.T`: xoay dòng thành cột trên máy bạn để dễ đọc (1 dòng × 7 cột thành 7 dòng × 1 cột); không gửi query, không tốn byte; trả DataFrame mới, `df` gốc không đổi.
+
+**Điều mình chưa chắc**
+- Công thức cũ của `Avg Order Value` (mẫu số có đúng là số dòng không).
+- `YoY %` khi slicer năm kéo thành nhiều năm (slicer đang kiểu Between, chưa thử).
+- Số 26 category (bạn nêu, mình chưa kiểm bằng SQL).
+
+**Cần ôn lại đầu ngày sau:** (1) `MAX(order_date)` đổi khi bấm biểu đồ vì bộ lọc thu hẹp tập dòng của fact (không ghi đè); `REMOVEFILTERS` đưa về ngày cuối của cả bảng; (2) *(đề xuất)* sai âm thầm chỉ lộ nhờ đối chiếu SQL độc lập, 61,00 sai cả khi không lọc; (3) *(đề xuất)* Top N lọc rồi sắp xếp theo measure, danh sách đổi theo department, tổng 10 category nhỏ hơn tổng thẻ KPI.
