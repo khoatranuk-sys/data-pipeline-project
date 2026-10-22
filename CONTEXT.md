@@ -52,6 +52,8 @@
 
 - Power BI (từ Tuần 5 Ngày 3): thêm 2 measure trong bảng `fct_net_sales`: `Avg Order Value = DIVIDE([Net Revenue], [Orders])`; `Data Through = CALCULATE(MAX(fct_net_sales[order_date]), REMOVEFILTERS(dim_date), REMOVEFILTERS(dim_products))`. Trang `Overview` có: tiêu đề, thẻ `Data Through`, slicer `year_number` (Between) và `department`, 6 thẻ KPI, biểu đồ đường (`Net Revenue` và `ly` theo `year_month`), biểu đồ cột Top 10 category, bảng category. Biểu đồ đường không còn lọc lên các thẻ (Edit interactions). Notebook: `Python/Week 5/Day3.ipynb` (Cell 1 định nghĩa `client`, `mb`, `stats`; Cell 2 Top 10 category 2026; Cell 3 KPI 2026 và mốc dữ liệu cuối).
 
+- Power BI (từ Tuần 5 Ngày 4): file `.pbix` đang dùng tên `W4D4_backup.pbix` (ngoài repo, `D:\BI\`). Trong Power Query (Home, Transform data, Choose columns) đã bỏ `order_item_id`, `user_id`, `cost` khỏi `fct_net_sales` (còn 5 cột) và `product_name` khỏi `dim_products` (còn 4 cột); các cột này vẫn còn trong BigQuery. Notebook: `Python/Week 5/Day4.ipynb` (Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 đo dung lượng `.pbix`; Cell 3 KPI gốc; Cell 4 số giá trị khác nhau từng cột; Cell 5, 5b, 5c tìm job của Power BI trong `INFORMATION_SCHEMA.JOBS`).
+
 ## 5. Chi phí và an toàn
 
 - Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
@@ -72,6 +74,7 @@
 - dbt test (Tuần 4 Ngày 5): `dbt run --select dim_date` báo `CREATE TABLE (3.3k rows, 0 processed)`, không quét byte. `dbt test --select dim_date fct_net_sales` chạy 7 test (chi phí chưa đo bằng `INFORMATION_SCHEMA.JOBS`, ước tính dưới 100 MB). Query đọc hai bảng (Cell 3, Cell 4) billed 20 MB, một bảng nhỏ (Cell 2) billed 10 MB (processed 0,03 MB): ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng" (mới vài lần đo, chưa có tài liệu xác nhận).
 - Tuần 5 Ngày 1: `dbt run --select dim_products fct_net_sales` (`PASS=2`, `CREATE TABLE` 45,3 nghìn dòng 10,5 MiB và 29,1 nghìn dòng 2,5 MiB) rồi `dbt test --select dim_products fct_net_sales dim_date` (`PASS=11 TOTAL=11`, gồm cả test `relationships` của `fct_net_sales_inc` vì nó đụng tới `dim_products`). Cell 2 billed 20 MB (hai bảng), Cell 3 billed 10 MB (một bảng). Chi phí của 11 test và của Refresh Power BI chưa đo.
 - Tuần 5 Ngày 2: chỉ có Cell 2 và Cell 3 đọc `fct_net_sales` (một bảng): Cell 3 processed 0,69 MB, billed 10 MB. Power BI Import mode không tốn byte khi tạo measure, lọc, bấm slicer. Không `dbt run`, không `dbt test`, không Refresh Power BI trong ngày.
+- Tuần 5 Ngày 4: Cell 3 và Cell 4 mỗi cell đọc một bảng, billed 10 MB. Mỗi cell đọc `INFORMATION_SCHEMA.JOBS` (Cell 5, 5b) billed 20 MB, processed 0,01 MB (lần thứ nhiều mà chưa hiểu); Cell 5c in `None` và `0.0 MB`. Lần Close & Apply (bỏ cột) không thấy trong `JOBS` trong 24 giờ và 60 phút; Billing Reports ngày 22/10 chưa có dòng chi phí nào (báo cáo nói chi phí có thể chậm hơn 24 giờ). Byte Refresh của Power BI vẫn chưa biết; không ghi "miễn phí".
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -273,9 +276,17 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn cuối ngày**: 4 câu trả lời (câu 2 và câu 6 bỏ theo yêu cầu). Câu 1: đúng ý chính, thay "ghi đè" bằng "thu hẹp tập dòng". Câu 3: nhầm nguyên nhân và cách phát hiện (cần đối chiếu SQL độc lập). Câu 4 (`df.T`): đúng. Câu 5: đúng hướng, thiếu ý "danh sách đổi, không chỉ thứ tự".
   - **Checklist Excel**: tick việc thiết kế dashboard của Tuần 5 (mình chưa đọc được file nên bạn tự đối chiếu tên dòng và số tổng hiển thị).
 
+    - **Tuần 5, Ngày 4**: tối ưu hiệu năng mô hình và báo cáo Power BI. Notebook `Python/Week 5/Day4.ipynb`.
+  - **Số gốc** (Cell 3, 4): 45.285 dòng, 31.203 đơn, doanh thu 2.707.334,88, 2026 là 982.813,17, ngày cuối 2026-10-22. Số giá trị khác nhau: `order_item_id` 45.285, `order_id` 31.203, `user_id` 27.546, `product_id` 22.840, `cost` 21.071, `gross_profit` 21.079, `sale_price` 3.681, `order_date` 2.670.
+  - **Kết quả**: `.pbix` 3.669.950 byte (3,50 MB) xuống 1.540.766 byte (1,47 MB) sau khi bỏ 4 cột không dùng; thẻ KPI năm 2026 vẫn khớp Cell 3. Performance Analyzer: `DAX query` luôn dưới khoảng 150 ms, `Visual display` khoảng 0,1 đến 3,8 giây, `Table` thường là biểu đồ chậm nhất; hai lượt đo cùng thao tác lệch nhau hàng nghìn ms, nên chưa kết luận gì về tốc độ trước và sau khi bỏ cột.
+  - **Ẩn khác bỏ**: ẩn cột (Hide) chỉ giấu khỏi danh sách trường, dữ liệu vẫn nằm trong bảng Import và quan hệ, measure vẫn dùng được; bỏ cột ở Power Query thì cột không được nạp vào mô hình. Bỏ cột đang được dùng thì quan hệ hoặc measure báo lỗi.
+  - **Không thấy Refresh trong `INFORMATION_SCHEMA.JOBS`**: hai khả năng (Power BI đọc qua đường khác không tạo job truy vấn, hoặc bộ lọc của mình chưa đúng); chưa biết byte Refresh.
+  - **Ôn cuối ngày**: 6 câu (3 nội dung, 3 Python). Câu 2: vòng `for` chạy 0 lần, nhầm "tập rỗng" với "giá trị null". Câu 5 ý 2: chưa nêu được lý do không kết luận được tốc độ (nhiễu đo). Câu 6: không nhớ `r"""` và `\s`.
+  - **Checklist Excel**: tick việc "Tối ưu hiệu năng mô hình và báo cáo" của Tuần 5.
+
 ## 8. Đang làm
 
-- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3). Còn lại theo checklist: tối ưu hiệu năng, hoàn thiện Project 1, chốt ngách và dữ liệu thật.
+- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3), tối ưu hiệu năng (Ngày 4). Còn lại theo checklist: hoàn thiện Project 1 (README tiếng Anh, sơ đồ kiến trúc, tiêu chí xong), chốt ngách và dữ liệu thật.
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -364,6 +375,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Measure sai nghĩa nhưng không báo lỗi** (`Avg Order Value` 61,00 thay vì 88,68): DAX chỉ kiểm cú pháp. Phát hiện bằng đối chiếu SQL độc lập cùng bản chụp, cùng điều kiện lọc; thẻ đổi khi bấm biểu đồ không chứng minh được gì vì measure đúng cũng đổi.
 - **Thẻ `Data Through` đổi khi bấm biểu đồ đường**: `MAX(order_date)` tính trên tập dòng đã bị thu hẹp. Sửa bằng `CALCULATE(..., REMOVEFILTERS(dim_date), REMOVEFILTERS(dim_products))` và tắt tương tác lên thẻ (Format, Edit interactions).
 - **Biểu đồ Top N dễ bị đọc là toàn bộ**: 10 category chỉ khoảng 68,3% tổng; danh sách đổi khi chọn department. Ghi "Top 10" ở tiêu đề.
+- **Vòng `for` không chạy khi `df` rỗng, và đó không phải null**: `len(df)` bằng 0 là tập rỗng (không có dòng nào khớp), khác một ô có giá trị null. Cell vẫn xanh vì SQL đúng và lặp qua danh sách rỗng là hợp lệ. Cell 5b và 5c rỗng nghĩa là Power BI không thấy trong `JOBS`, không phải lỗi code.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -408,6 +420,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 5, Ngày 1: filter ghi đè khi dùng `CALCULATE` là có chủ ý; measure mẫu `Net Revenue Men`, `Net Revenue 2025` chỉ để học, không đưa vào dashboard thật. Mẫu số "tổng" dùng `REMOVEFILTERS` trên đúng bảng cần gỡ. Số cũ (45.529 dòng) không còn: `dbt run` đã ghi đè `fct_net_sales` bằng bản chụp mới (45.285 dòng). Muốn so sánh số giữa các ngày thì lưu bản chụp có đánh ngày hoặc dùng nguồn không đổi.
 - Tuần 5, Ngày 2: so sánh cùng kỳ năm trước phải cắt `ly` ở cùng ngày-tháng với ngày dữ liệu cuối (dùng `LastData` tính bằng `REMOVEFILTERS(dim_date)`), không so năm đang chạy với cả năm trước. Measure hiển thị theo thời gian trả BLANK khi chưa có dữ liệu (`IF(ISBLANK(...))`). Giữ `dim_date` phủ đến 2027 (không rút ngắn); lọc slicer năm bằng `Net Revenue` is not blank. Không cần Mark as date table cho mô hình hiện tại (đã đo). Trước khi giao dashboard thật: kiểm `MAX(order_date)`, số ngày có dữ liệu của tháng cuối, và đối chiếu một câu SQL cùng kỳ với dòng Total.
 - Tuần 5, Ngày 3: mọi số trên thẻ KPI phải khớp một câu SQL độc lập (cùng bản chụp, cùng điều kiện lọc) trước khi tin. Thẻ "ngày dữ liệu cuối" dùng `REMOVEFILTERS`. Biểu đồ chọn tháng không được lọc lên thẻ KPI (Edit interactions). Biểu đồ Top N ghi rõ "Top 10" ở tiêu đề. `.pbix` vẫn để ngoài repo (`D:\BI\powerbi\`).
+- Tuần 5, Ngày 4: mô hình Power BI chỉ giữ cột thật sự dùng; bỏ cột ở Power Query (không chỉ ẩn); cột vẫn nằm trong BigQuery. Mọi thay đổi mô hình phải đối chiếu lại thẻ KPI với một câu SQL cùng bản chụp. Số đo thời gian (ms) chỉ kết luận được khi đo nhiều lượt và điều kiện giống nhau; không đo lần đơn lẻ.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -437,7 +450,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao lần `dbt run --select dim_date` đầu không tìm thấy model dù đã `Found 8 models` (nghi tên file, chưa xác nhận)?
 - Chi phí thật của `dbt test --select dim_date fct_net_sales` (7 test) chưa đo bằng `INFORMATION_SCHEMA.JOBS`.
 - Vì sao doanh thu năm 2025 đổi (624.117,64 sang 615.360,21) khi năm đã qua? Giả thuyết: nguồn mô phỏng đổi trạng thái đơn cũ. Chưa kiểm tra id (đã chọn bỏ qua, không làm).
-- Mỗi lần Refresh Power BI đọc bao nhiêu byte (3 bảng), và 11 test dbt hôm nay tốn bao nhiêu? Chưa đo.
+- Mỗi lần Refresh Power BI đọc bao nhiêu byte? Không thấy lần Close & Apply ngày 22/10 trong `INFORMATION_SCHEMA.JOBS` (24 giờ và 60 phút); khả năng là đường đọc khác không tạo job, chưa kiểm chứng. Kiểm Billing Reports ngày 23/10.
+- Việc bỏ cột có làm bớt byte đọc từ BigQuery khi nạp không (cần thấy câu SQL của Power BI)? Chưa biết.
+- Chỉ ẩn cột thì `.pbix` có đổi dung lượng không? Chưa làm thí nghiệm.
+- Close & Apply có nạp lại cả hai bảng hay chỉ bảng đã sửa? Chưa kiểm chứng.
+- Vì sao Cell 5c in `Sẽ quét: None MB` và `billed 0.0 MB` trong khi Cell 5 và 5b in 0,01 MB và 20 MB? Chưa hiểu.
 - `EDATE(LastData, -12)` với ngày 29/02 xử lý thế nào, và `DATEADD(LastData, -1, YEAR)` có cho cùng kết quả không? Chưa thử.
 - Lọc slicer bằng measure (`Net Revenue` is not blank) có làm chậm hoặc đổi theo bộ lọc khác không? Chưa kiểm chứng.
 
@@ -463,4 +480,5 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Ôn cuối ngày: **không hỏi lại** những dòng code và khái niệm mình đã trả lời đúng trên khoảng 70% số lần; dành chỗ cho câu mới. Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn.
 Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó; `dry_run=True` chỉ kiểm tra và ước lượng, không cần `job.result()`. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn và không chạm tầng DAX; `LastData` luôn là ngày cuối của cả bảng, không đổi theo slicer; `def` chỉ định nghĩa hàm, `max_mb=100` là tham số mặc định, thiếu `return` thì `None`.
 
-“Chưa chắc, vẫn hỏi lại”: “MAX(order_date) đổi khi bấm biểu đồ vì bộ lọc thu hẹp tập dòng (không ghi đè); sai âm thầm lộ nhờ đối chiếu SQL độc lập; Top N lọc rồi sắp xếp theo measure”. Hai câu bỏ theo yêu cầu hôm nay (def/return và hàm mb) không ghi vào danh sách đã nắm chắc.
+- “Chưa chắc, vẫn hỏi lại”: “MAX(order_date) đổi khi bấm biểu đồ vì bộ lọc thu hẹp tập dòng (không ghi đè); sai âm thầm lộ nhờ đối chiếu SQL độc lập; Top N lọc rồi sắp xếp theo measure”. Hai câu bỏ theo yêu cầu hôm nay (def/return và hàm mb) không ghi vào danh sách đã nắm chắc.
+- “Chưa chắc, vẫn hỏi lại”: len(df) bằng 0 là tập rỗng (không phải null) nên vòng for chạy 0 lần; r""" giữ nguyên dấu \ trong chuỗi Python, r'...' trong SQL là của BigQuery; nhiễu đo ms lớn hơn khác biệt trước và sau thì không kết luận được tốc độ.

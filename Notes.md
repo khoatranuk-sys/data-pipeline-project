@@ -910,3 +910,39 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Số 26 category (bạn nêu, mình chưa kiểm bằng SQL).
 
 **Cần ôn lại đầu ngày sau:** (1) `MAX(order_date)` đổi khi bấm biểu đồ vì bộ lọc thu hẹp tập dòng của fact (không ghi đè); `REMOVEFILTERS` đưa về ngày cuối của cả bảng; (2) *(đề xuất)* sai âm thầm chỉ lộ nhờ đối chiếu SQL độc lập, 61,00 sai cả khi không lọc; (3) *(đề xuất)* Top N lọc rồi sắp xếp theo measure, danh sách đổi theo department, tổng 10 category nhỏ hơn tổng thẻ KPI.
+
+## Tuần 5 - Ngày 4: tối ưu hiệu năng mô hình và báo cáo Power BI
+
+**Ý chính (4 ý cần nhớ)**
+- Ẩn cột (Hide) chỉ giấu cột khỏi danh sách trường; dữ liệu vẫn nằm trong bảng Import, quan hệ và measure vẫn dùng được. Bỏ cột ở Power Query (Choose columns) thì cột không được nạp vào mô hình, nên `.pbix` nhẹ hơn; bỏ cột đang được dùng thì quan hệ hoặc measure báo lỗi.
+- Performance Analyzer chia thời gian một biểu đồ thành `DAX query`, `Visual display`, `Other`. `DAX query` của mình luôn dưới khoảng 150 ms, nên sửa measure không làm dashboard nhanh hơn đáng kể; thời gian nằm ở vẽ biểu đồ và chờ.
+- Hai lượt đo cùng một thao tác lệch nhau hàng nghìn ms (nhiễu đo), lớn hơn mọi khác biệt trước và sau, nên không kết luận được "nhanh hơn". Số đo rõ ràng duy nhất là dung lượng file.
+- "Không thấy trong `INFORMATION_SCHEMA.JOBS`" chưa chứng minh "không tốn tiền": Power BI có thể đọc qua đường khác không tạo job truy vấn.
+
+**Số đo** (bản chụp `fct_net_sales` 45.285 dòng, không `dbt run`)
+
+| | Trước | Sau |
+|---|---|---|
+| `.pbix` | 3.669.950 byte (3,50 MB) | 1.540.766 byte (1,47 MB) |
+| Cột `fct_net_sales` | 8 | 5 (bỏ `order_item_id`, `user_id`, `cost`) |
+| Cột `dim_products` | 5 | 4 (bỏ `product_name`) |
+| KPI năm 2026 | khớp SQL | khớp SQL (982.813,17; 11.083 đơn; 88,68) |
+
+- Số giá trị khác nhau: `order_item_id` 45.285, `order_id` 31.203, `user_id` 27.546, `product_id` 22.840, `cost` 21.071, `gross_profit` 21.079, `sale_price` 3.681, `order_date` 2.670. Ba cột bỏ nằm trong nhóm nhiều giá trị khác nhau mà Power BI không dùng.
+- Performance Analyzer: `Table` thường chậm nhất; `Visual display` khoảng 0,1 đến 3,8 giây giữa các lượt.
+
+**Chỗ dễ nhầm**
+- Cell xanh không lỗi mà không in gì: `len(df)` bằng 0 là tập rỗng (không có dòng nào khớp), không phải null; vòng `for` chạy 0 lần.
+- Dòng thiếu `AS tên` làm BigQuery tự đặt tên `f0_`; giá trị vẫn đúng.
+- Cell 5, 5b, 5c không thấy lần Close & Apply; đừng ghi "Refresh miễn phí".
+
+**Ôn code cuối ngày**
+- `if not PBIX.exists():` + `return`: kiểm tra file có tồn tại không rồi thoát hàm; bỏ đoạn này thì dòng `PBIX.stat()` nổ lỗi đỏ `FileNotFoundError`. Lỗi đỏ ở đây là không tìm thấy file, không phải sai code.
+- `sql = r"""..."""` và `r'\s+'`: `r` trước `"""` (Python) giữ nguyên dấu `\`; `r` trước `'\s+'` (BigQuery) là chuỗi thô phía SQL.
+
+**Điều mình chưa chắc**
+- Byte Refresh của Power BI (không thấy trong `JOBS`; kiểm Billing Reports ngày 23/10).
+- Bỏ cột có giảm byte đọc từ BigQuery không.
+- Chỉ ẩn cột thì `.pbix` đổi không (chưa thí nghiệm).
+
+**Cần ôn lại đầu ngày sau:** (1) ẩn khác bỏ cột; (2) `len(df)` bằng 0 là tập rỗng, vòng `for` chạy 0 lần, cell vẫn xanh; (3) nhiễu đo ms lớn hơn khác biệt trước và sau nên không kết luận tốc độ; (4) "không thấy trong `JOBS`" không có nghĩa là không tốn tiền; (5) `r"""` giữ nguyên `\`.
