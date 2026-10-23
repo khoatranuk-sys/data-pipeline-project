@@ -946,3 +946,31 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Chỉ ẩn cột thì `.pbix` đổi không (chưa thí nghiệm).
 
 **Cần ôn lại đầu ngày sau:** (1) ẩn khác bỏ cột; (2) `len(df)` bằng 0 là tập rỗng, vòng `for` chạy 0 lần, cell vẫn xanh; (3) nhiễu đo ms lớn hơn khác biệt trước và sau nên không kết luận tốc độ; (4) "không thấy trong `JOBS`" không có nghĩa là không tốn tiền; (5) `r"""` giữ nguyên `\`.
+
+## Tuần 5 - Ngày 5: khảo sát tuyển dụng, ETL và giấy phép dữ liệu
+
+**Ý chính (4 ý cần nhớ)**
+- ETL là Extract (lấy từ nguồn), Transform (làm sạch, đổi kiểu, kiểm tra), Load (nạp vào đích). ELT nạp dữ liệu thô vào warehouse trước rồi biến đổi bằng SQL ngay trong đó. Pipeline thời tiết (Tuần 1) là ETL: biến đổi bằng pandas trước khi nạp. dbt trên BigQuery là ELT: nguồn đã nằm trong BigQuery, dbt chỉ gửi `SELECT` lên để dựng staging và mart.
+- Khảo sát 27 tin ở TP.HCM (20 tin BI/Data Analyst, 7 tin Analytics/Data Engineer, lấy từ trang liệt kê, chưa đọc trọn từng JD): nhóm BI/DA có Power BI 17/20, Tableau 9/20, Looker 4/20; dbt (6/7) và BigQuery (4/7) chỉ nằm ở tin kỹ sư; Airflow 3/7; Docker 0. Truy vấn đầu chứa "Power BI" nên con số Power BI bị thổi phồng. Có tin logistics cụ thể (GHN, Tân Cảng, Tiki, tiếp vận, CyberLogitec, Wecare); GHN đòi 2 đến 4 năm kinh nghiệm và ưu tiên người từng làm logistics hoặc e-commerce.
+- CC BY-NC-SA 4.0 (giấy phép của bộ Olist trên Kaggle): BY là phải ghi nguồn; NC là không dùng cho mục đích thương mại; SA là sản phẩm phái sinh giữ cùng giấy phép. Hệ quả: dùng để học và portfolio thì phù hợp, nhưng không dùng sản phẩm này cho khách trả tiền, và không đưa dữ liệu hay bảng đã biến đổi lên GitHub. Mình không phải luật sư; dùng portfolio để xin việc là vùng xám.
+- Job tự động mà lỗi không lộ ra thì nguy hơn chạy tay. "Chỉ nhìn kết quả xem có lỗi không" chỉ đúng khi lỗi lộ được: kiểm số dòng nạp so với số dòng gửi, `validate`, dòng vàng của dbt, mã thoát 0 hoặc 1. Đã gặp nhiều lỗi âm thầm: test PASS mà số vẫn đổi, vòng `for` chạy 0 lần mà cell vẫn xanh, gõ sai tên model chỉ ra dòng vàng.
+
+**Tiêu chí xong của Project 1 (6 tiêu chí)**
+- `dbt test` đạt toàn bộ test của 4 mart (mong đợi PASS=14).
+- Mọi thẻ KPI khớp một câu SQL độc lập.
+- Star schema: `fct_net_sales` giữa, `dim_products` và `dim_date` nối vào, Single.
+- Cầu chì chi phí (`maximum_bytes_billed`) ghi trong README.
+- README đủ: mục tiêu, nguồn, kiến trúc, cách chạy lại, hạn chế.
+- Repo không có bí mật, `.pbix`, `data/`.
+
+**Tiêu chí thêm cho Project 2**
+- (7) Chạy theo lịch không cần can thiệp; mỗi lần chạy có log từng bước (Extract, Transform, Load, `dbt run`, `dbt test`), mã thoát 0 hoặc 1, và một chỗ duy nhất để xem đêm qua OK hay lỗi.
+- (8) README ghi nguồn, giấy phép, và nêu rõ không dùng cho khách trả tiền.
+
+**Điều mình chưa chắc**
+- Thư mục `D:\BI\Dataset` (5 file CSV và `Template.png`) có phải bộ Olist không: tên file và dung lượng (ba file chỉ 143, 628, 225 byte) không giống điều mình nhớ về Olist. Chưa mở xem.
+- Olist có phải dữ liệu đóng băng không (nếu vậy thì "cập nhật tự động" phải mô phỏng bằng cách nạp từng khối thời gian).
+- Nhiều tin ghi ETL: họ muốn mình viết pipeline hay chỉ dùng dữ liệu đã qua ETL (chưa đọc trọn JD).
+- GitHub Actions xác thực với BigQuery thế nào khi không dùng file khóa (chưa tìm hiểu).
+
+**Cần ôn lại đầu ngày sau:** (1) ETL biến đổi trước khi nạp, ELT nạp thô rồi biến đổi trong warehouse; pipeline thời tiết là ETL, dbt là ELT; (2) CC BY-NC-SA: BY ghi nguồn, NC không thương mại, SA cùng giấy phép; không đưa dữ liệu lên GitHub; (3) số đếm Power BI bị thổi phồng vì truy vấn đầu chứa "Power BI"; (4) lỗi không lộ ra thì job tự động nguy hơn chạy tay.

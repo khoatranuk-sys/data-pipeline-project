@@ -54,6 +54,8 @@
 
 - Power BI (từ Tuần 5 Ngày 4): file `.pbix` đang dùng tên `W4D4_backup.pbix` (ngoài repo, `D:\BI\`). Trong Power Query (Home, Transform data, Choose columns) đã bỏ `order_item_id`, `user_id`, `cost` khỏi `fct_net_sales` (còn 5 cột) và `product_name` khỏi `dim_products` (còn 4 cột); các cột này vẫn còn trong BigQuery. Notebook: `Python/Week 5/Day4.ipynb` (Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 đo dung lượng `.pbix`; Cell 3 KPI gốc; Cell 4 số giá trị khác nhau từng cột; Cell 5, 5b, 5c tìm job của Power BI trong `INFORMATION_SCHEMA.JOBS`).
 
+- Thư mục `D:\BI\Dataset` (ngoài repo, **không commit**, không chép vào `data/`) chứa `customer.csv`, `orders.csv`, `payment.csv`, `product.csv`, `shipping.csv` và `Template.png` (ghi ngày 13/9 và 15/9/2026). Chưa xác nhận đây có phải bộ Olist không: tên file không có tiền tố `olist_` và ba file chỉ 143, 628, 225 byte. Chưa mở xem nội dung. Giấy phép CC BY-NC-SA 4.0 xác nhận ngày 23/10/2026 trên trang Kaggle của Olist, chỉ áp dụng cho Olist.
+
 ## 5. Chi phí và an toàn
 
 - Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
@@ -283,11 +285,20 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Không thấy Refresh trong `INFORMATION_SCHEMA.JOBS`**: hai khả năng (Power BI đọc qua đường khác không tạo job truy vấn, hoặc bộ lọc của mình chưa đúng); chưa biết byte Refresh.
   - **Ôn cuối ngày**: 6 câu (3 nội dung, 3 Python). Câu 2: vòng `for` chạy 0 lần, nhầm "tập rỗng" với "giá trị null". Câu 5 ý 2: chưa nêu được lý do không kết luận được tốc độ (nhiễu đo). Câu 6: không nhớ `r"""` và `\s`.
   - **Checklist Excel**: tick việc "Tối ưu hiệu năng mô hình và báo cáo" của Tuần 5.
+    - **Tuần 5, Ngày 5**: khảo sát tuyển dụng, chốt hướng Project 2, thêm tiêu chí xong. (Ảnh, lineage, sơ đồ Mermaid, README Project 1: điền vào đây khi làm xong.)
+  - **Khảo sát tuyển dụng**: 27 tin ở TP.HCM, 20 tin BI/Data Analyst và 7 tin Analytics/Data Engineer, lấy từ trang liệt kê (ITviec, Indeed, CareerViet, Glassdoor) và một số JD đầy đủ; LinkedIn và TopCV không truy cập được. Nhóm BI/DA: Power BI 17/20, Tableau 9/20, Looker 4/20. dbt 6/7 và BigQuery 4/7 chỉ ở tin kỹ sư; Airflow 3/7; Docker 0/27. Truy vấn đầu chứa "Power BI" nên số Power BI bị thổi phồng.
+  - **Logistics và e-commerce có tin cụ thể**: GHN (2 tin, 2 đến 4 năm kinh nghiệm, ưu tiên logistics hoặc e-commerce), Tân Cảng Sài Gòn, Tiki (SnOP eLogistics), công ty tiếp vận, CyberLogitec, Wecare.
+  - **ETL và ELT**: ETL biến đổi trước khi nạp, ELT nạp thô rồi biến đổi trong warehouse. Pipeline thời tiết là ETL, dbt trên BigQuery là ELT.
+  - **Giấy phép**: bộ Olist là CC BY-NC-SA 4.0 (ghi nguồn, không thương mại, cùng giấy phép cho sản phẩm phái sinh).
+  - **Tiêu chí xong**: 6 tiêu chí cho Project 1, thêm tiêu chí 7 (chạy theo lịch, log, mã thoát) và 8 (ghi nguồn và giấy phép) cho Project 2. Chi tiết ở mục 10.
+  - **Ôn Python cuối ngày**: chưa làm (cập nhật sau).
+  - **Checklist Excel**: chưa đọc được file nên bạn tự tick việc Tuần 5 tương ứng (hoàn thiện Project 1, chốt ngách và dữ liệu) khi xong và đối chiếu số hiển thị.
 
 ## 8. Đang làm
 
 - **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3), tối ưu hiệu năng (Ngày 4). Còn lại theo checklist: hoàn thiện Project 1 (README tiếng Anh, sơ đồ kiến trúc, tiêu chí xong), chốt ngách và dữ liệu thật.
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
+- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3), tối ưu hiệu năng (Ngày 4). Ngày 5: xong khảo sát tuyển dụng và chốt hướng; còn Project 1 (ảnh `Doc/`, lineage, sơ đồ Mermaid, README tiếng Anh, quét bí mật, commit) và xác nhận bộ dữ liệu trong `D:\BI\Dataset`.
 
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -421,6 +432,12 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 5, Ngày 2: so sánh cùng kỳ năm trước phải cắt `ly` ở cùng ngày-tháng với ngày dữ liệu cuối (dùng `LastData` tính bằng `REMOVEFILTERS(dim_date)`), không so năm đang chạy với cả năm trước. Measure hiển thị theo thời gian trả BLANK khi chưa có dữ liệu (`IF(ISBLANK(...))`). Giữ `dim_date` phủ đến 2027 (không rút ngắn); lọc slicer năm bằng `Net Revenue` is not blank. Không cần Mark as date table cho mô hình hiện tại (đã đo). Trước khi giao dashboard thật: kiểm `MAX(order_date)`, số ngày có dữ liệu của tháng cuối, và đối chiếu một câu SQL cùng kỳ với dòng Total.
 - Tuần 5, Ngày 3: mọi số trên thẻ KPI phải khớp một câu SQL độc lập (cùng bản chụp, cùng điều kiện lọc) trước khi tin. Thẻ "ngày dữ liệu cuối" dùng `REMOVEFILTERS`. Biểu đồ chọn tháng không được lọc lên thẻ KPI (Edit interactions). Biểu đồ Top N ghi rõ "Top 10" ở tiêu đề. `.pbix` vẫn để ngoài repo (`D:\BI\powerbi\`).
 - Tuần 5, Ngày 4: mô hình Power BI chỉ giữ cột thật sự dùng; bỏ cột ở Power Query (không chỉ ẩn); cột vẫn nằm trong BigQuery. Mọi thay đổi mô hình phải đối chiếu lại thẻ KPI với một câu SQL cùng bản chụp. Số đo thời gian (ms) chỉ kết luận được khi đo nhiều lượt và điều kiện giống nhau; không đo lần đơn lẻ.
+- Tuần 5, Ngày 5: Project 1 xong khi đủ 6 tiêu chí: `dbt test` đạt toàn bộ test của 4 mart (mong đợi PASS=14); mọi thẻ KPI khớp một câu SQL độc lập; star schema (`fct_net_sales` giữa, `dim_products` và `dim_date`, Single); cầu chì chi phí ghi trong README; README đủ (mục tiêu, nguồn, kiến trúc, cách chạy lại, hạn chế); repo không có bí mật, `.pbix`, `data/`.
+- Tuần 5, Ngày 5: công cụ BI chính là Power BI, Looker Studio là công cụ phụ; ngách là logistics và e-commerce (vận hành giao hàng); Airflow và Docker tiếp tục hoãn (Docker 0/27 tin, Airflow chỉ ở tin kỹ sư).
+- Tuần 5, Ngày 5: Project 2 thêm hai tiêu chí xong ngoài 6 tiêu chí: (7) pipeline chạy theo lịch không cần can thiệp, mỗi lần chạy có log từng bước (Extract, Transform, Load, `dbt run`, `dbt test`), mã thoát 0 hoặc 1, một chỗ duy nhất để xem kết quả; lỗi không được lộ ra âm thầm (kiểm số dòng nạp, `validate`, dòng vàng của dbt); (8) README ghi nguồn, giấy phép và nêu rõ không dùng cho khách trả tiền.
+- Tuần 5, Ngày 5: Project 2 là một repo mới hoàn toàn tên `olist-bi-project` (cùng tài khoản `khoatranuk-sys`, không dùng chung với `data-pipeline-project`). Dữ liệu Olist gốc giữ ở một chỗ (`D:\BI\projects\ai-logistics\data\olist`), không chép vào repo; script đọc đường dẫn từ `.env` (`OLIST_DIR`). Nạp lên BigQuery bằng load job vào dataset riêng (`olist_raw`, US); dbt dùng dataset riêng, tách khỏi `dbt_dev`. `.gitignore` tạo trước khi có file dữ liệu đầu tiên. Repo tạo ở Tuần 6, Ngày 1 (chưa tạo).
+- Tuần 5, Ngày 5: nếu dữ liệu là bản đóng băng thì "cập nhật tự động" được mô phỏng bằng cách nạp từng khối thời gian, mỗi lần chạy thêm một khối; README ghi rõ đây là mô phỏng. Quota `Query usage per day` phải đặt trước khi bật lịch chạy (chờ nâng cấp trả phí, hạn quyết định 06/01/2027).
+
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -457,6 +474,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao Cell 5c in `Sẽ quét: None MB` và `billed 0.0 MB` trong khi Cell 5 và 5b in 0,01 MB và 20 MB? Chưa hiểu.
 - `EDATE(LastData, -12)` với ngày 29/02 xử lý thế nào, và `DATEADD(LastData, -1, YEAR)` có cho cùng kết quả không? Chưa thử.
 - Lọc slicer bằng measure (`Net Revenue` is not blank) có làm chậm hoặc đổi theo bộ lọc khác không? Chưa kiểm chứng.
+- Thư mục `D:\BI\Dataset` (`customer`, `orders`, `payment`, `product`, `shipping`, `Template.png`) là dữ liệu gì và từ đâu? Có phải Olist không (tên file và dung lượng không giống), giấy phép ra sao? Chưa mở xem nội dung.
+- Nếu là Olist: có phải dữ liệu đóng băng không, và chia khối thời gian thế nào để mô phỏng cập nhật tự động? Chưa kiểm chứng.
+- Chạy pipeline theo lịch bằng gì: Windows Task Scheduler (đề xuất, hợp với `oauth`, không file khóa), BigQuery scheduled query (chỉ chạy SQL), hay GitHub Actions (chưa rõ cách xác thực không dùng khóa)? Quyết định ở Tuần 6.
+- Giấy phép NC có ảnh hưởng thế nào khi dùng dữ liệu trong portfolio để xin việc (vùng xám, chưa phải luật sư)?
+- Nhiều tin tuyển dụng ghi ETL: họ muốn viết pipeline hay chỉ dùng dữ liệu đã qua ETL? Chưa đọc trọn các JD đó.
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
