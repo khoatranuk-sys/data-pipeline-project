@@ -1,6 +1,6 @@
 # Ngữ cảnh học tập (dán file này vào đầu mỗi cuộc trò chuyện mới)
 
-> Cập nhật lần cuối: 21/10/2026. ...
+> Cập nhật lần cuối: 24/10/2026. ...
 > Repo này công khai: không ghi mật khẩu, API key, token, email cá nhân hay dữ liệu khách hàng thật.
 
 ## 1. Mục tiêu
@@ -54,7 +54,8 @@
 
 - Power BI (từ Tuần 5 Ngày 4): file `.pbix` đang dùng tên `W4D4_backup.pbix` (ngoài repo, `D:\BI\`). Trong Power Query (Home, Transform data, Choose columns) đã bỏ `order_item_id`, `user_id`, `cost` khỏi `fct_net_sales` (còn 5 cột) và `product_name` khỏi `dim_products` (còn 4 cột); các cột này vẫn còn trong BigQuery. Notebook: `Python/Week 5/Day4.ipynb` (Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 đo dung lượng `.pbix`; Cell 3 KPI gốc; Cell 4 số giá trị khác nhau từng cột; Cell 5, 5b, 5c tìm job của Power BI trong `INFORMATION_SCHEMA.JOBS`).
 
-- Thư mục `D:\BI\Dataset` (ngoài repo, **không commit**, không chép vào `data/`) chứa `customer.csv`, `orders.csv`, `payment.csv`, `product.csv`, `shipping.csv` và `Template.png` (ghi ngày 13/9 và 15/9/2026). Chưa xác nhận đây có phải bộ Olist không: tên file không có tiền tố `olist_` và ba file chỉ 143, 628, 225 byte. Chưa mở xem nội dung. Giấy phép CC BY-NC-SA 4.0 xác nhận ngày 23/10/2026 trên trang Kaggle của Olist, chỉ áp dụng cho Olist.
+- Dữ liệu Olist (ngoài repo, **không commit**, không chép vào `data/`): `D:\BI\projects\ai-logistics\data\olist`, 9 file CSV (`olist_customers_dataset`, `olist_geolocation_dataset`, `olist_order_items_dataset`, `olist_order_payments_dataset`, `olist_order_reviews_dataset`, `olist_orders_dataset`, `olist_products_dataset`, `olist_sellers_dataset`, `product_category_name_translation`). Chưa mở xem tên cột. CSV đang liên kết với Excel: mở bằng VS Code, không lưu lại bằng Excel. Thư mục `D:\BI\Dataset` (5 file nhỏ và `Template.png`) **không phải Olist**, nội dung chưa biết, không dùng cho Project 2. Giấy phép CC BY-NC-SA 4.0 xác nhận ngày 23/10/2026 trên trang Kaggle của Olist.
+- Thư mục `Doc/` (từ Tuần 5 Ngày 6): `Dashboard.png`, `PowerBI_Model.png`, `dbt_lineage.png`, `star_schema.png`, `Definition_of_done.md` (6 mục Project 1, đã tích đủ). Tên file phải khớp từng chữ với README (GitHub phân biệt hoa thường).
 
 ## 5. Chi phí và an toàn
 
@@ -77,6 +78,7 @@
 - Tuần 5 Ngày 1: `dbt run --select dim_products fct_net_sales` (`PASS=2`, `CREATE TABLE` 45,3 nghìn dòng 10,5 MiB và 29,1 nghìn dòng 2,5 MiB) rồi `dbt test --select dim_products fct_net_sales dim_date` (`PASS=11 TOTAL=11`, gồm cả test `relationships` của `fct_net_sales_inc` vì nó đụng tới `dim_products`). Cell 2 billed 20 MB (hai bảng), Cell 3 billed 10 MB (một bảng). Chi phí của 11 test và của Refresh Power BI chưa đo.
 - Tuần 5 Ngày 2: chỉ có Cell 2 và Cell 3 đọc `fct_net_sales` (một bảng): Cell 3 processed 0,69 MB, billed 10 MB. Power BI Import mode không tốn byte khi tạo measure, lọc, bấm slicer. Không `dbt run`, không `dbt test`, không Refresh Power BI trong ngày.
 - Tuần 5 Ngày 4: Cell 3 và Cell 4 mỗi cell đọc một bảng, billed 10 MB. Mỗi cell đọc `INFORMATION_SCHEMA.JOBS` (Cell 5, 5b) billed 20 MB, processed 0,01 MB (lần thứ nhiều mà chưa hiểu); Cell 5c in `None` và `0.0 MB`. Lần Close & Apply (bỏ cột) không thấy trong `JOBS` trong 24 giờ và 60 phút; Billing Reports ngày 22/10 chưa có dòng chi phí nào (báo cáo nói chi phí có thể chậm hơn 24 giờ). Byte Refresh của Power BI vẫn chưa biết; không ghi "miễn phí".
+- Tuần 5 Ngày 6: Billing Overview ngày 24/10/2026 hiện tổng chi phí ₫0, tín dụng dùng thử còn nguyên ₫7.791.151, còn 73 ngày (hết 06/01/2027). Chi phí có thể trễ hơn 24 giờ; chưa chứng minh Refresh Power BI miễn phí. `dbt test` 4 mart (14 test) chạy 24,72 giây, chi phí thật chưa đo.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -291,15 +293,20 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **ETL và ELT**: ETL biến đổi trước khi nạp, ELT nạp thô rồi biến đổi trong warehouse. Pipeline thời tiết là ETL, dbt trên BigQuery là ELT.
   - **Giấy phép**: bộ Olist là CC BY-NC-SA 4.0 (ghi nguồn, không thương mại, cùng giấy phép cho sản phẩm phái sinh).
   - **Tiêu chí xong**: 6 tiêu chí cho Project 1, thêm tiêu chí 7 (chạy theo lịch, log, mã thoát) và 8 (ghi nguồn và giấy phép) cho Project 2. Chi tiết ở mục 10.
-  - **Ôn Python cuối ngày**: chưa làm (cập nhật sau).
+  - **Ôn Python cuối ngày**: gộp vào ôn Ngày 6.
   - **Checklist Excel**: chưa đọc được file nên bạn tự tick việc Tuần 5 tương ứng (hoàn thiện Project 1, chốt ngách và dữ liệu) khi xong và đối chiếu số hiển thị.
-
+  - **Tuần 5, Ngày 6**: đóng Project 1 và xác nhận dữ liệu Project 2. Không có notebook mới.
+  - **Project 1 xong**: `dbt test` 4 mart `PASS=14 TOTAL=14`; thẻ KPI khớp SQL; star schema 2 quan hệ Single; cầu chì ghi trong README; README đủ mục (sơ đồ Architecture và Data model nằm trong phần Project 1, 3 ảnh trong `Doc/`); repo không có bí mật, `.pbix`, `data/`. `Doc/Definition_of_done.md` tích đủ 6 mục.
+  - **Quét bí mật**: `git grep` ra 2 dòng đều an toàn (`.env.example` chữ giữ chỗ, `Day4.ipynb` dùng `os.getenv`). Chỉ quét bản hiện tại. Lần này push trước khi quét xong; từ nay quét trước khi push.
+  - **Dữ liệu Project 2**: xác nhận thư mục Olist ở `D:\BI\projects\ai-logistics\data\olist` (9 file). `D:\BI\Dataset` không phải Olist.
+  - **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng: `CALCULATE` ghi đè filter cùng cột; ETL và ELT. Cần ôn: `for` với `df` rỗng chạy 0 lần; `def` chỉ định nghĩa, thiếu `return` thì `None`; chữ `r` ngoài là Python còn chữ `r` trong SQL là BigQuery; `relationships` tìm khóa mồ côi, không phải NULL.
+  - **Checklist Excel**: tick việc hoàn thiện Project 1 của Tuần 5 (kiểm tra lại tên dòng và số tổng hiển thị).
 ## 8. Đang làm
 
 - **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3), tối ưu hiệu năng (Ngày 4). Còn lại theo checklist: hoàn thiện Project 1 (README tiếng Anh, sơ đồ kiến trúc, tiêu chí xong), chốt ngách và dữ liệu thật.
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
-- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3), tối ưu hiệu năng (Ngày 4). Ngày 5: xong khảo sát tuyển dụng và chốt hướng; còn Project 1 (ảnh `Doc/`, lineage, sơ đồ Mermaid, README tiếng Anh, quét bí mật, commit) và xác nhận bộ dữ liệu trong `D:\BI\Dataset`.
-
+- **Tuần 5** (còn việc cuối): Project 1 đã xong. Còn chốt ngách và dữ liệu thật cho Project 2 (đã xác nhận thư mục Olist, chưa mở xem tên cột).
+- **Tuần 6, Ngày 1** (tiếp theo): tạo repo mới `olist-bi-project`, `.gitignore` trước khi có file dữ liệu.
 ## 9. Lỗi đã gặp và cách sửa
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
 - **Gõ nhầm `git config user.mail`** thay vì `user.email`: Git không báo lỗi, khóa sai vô tác dụng. Sửa: đặt lại `user.email` và `--unset user.mail`.
@@ -437,6 +444,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 5, Ngày 5: Project 2 thêm hai tiêu chí xong ngoài 6 tiêu chí: (7) pipeline chạy theo lịch không cần can thiệp, mỗi lần chạy có log từng bước (Extract, Transform, Load, `dbt run`, `dbt test`), mã thoát 0 hoặc 1, một chỗ duy nhất để xem kết quả; lỗi không được lộ ra âm thầm (kiểm số dòng nạp, `validate`, dòng vàng của dbt); (8) README ghi nguồn, giấy phép và nêu rõ không dùng cho khách trả tiền.
 - Tuần 5, Ngày 5: Project 2 là một repo mới hoàn toàn tên `olist-bi-project` (cùng tài khoản `khoatranuk-sys`, không dùng chung với `data-pipeline-project`). Dữ liệu Olist gốc giữ ở một chỗ (`D:\BI\projects\ai-logistics\data\olist`), không chép vào repo; script đọc đường dẫn từ `.env` (`OLIST_DIR`). Nạp lên BigQuery bằng load job vào dataset riêng (`olist_raw`, US); dbt dùng dataset riêng, tách khỏi `dbt_dev`. `.gitignore` tạo trước khi có file dữ liệu đầu tiên. Repo tạo ở Tuần 6, Ngày 1 (chưa tạo).
 - Tuần 5, Ngày 5: nếu dữ liệu là bản đóng băng thì "cập nhật tự động" được mô phỏng bằng cách nạp từng khối thời gian, mỗi lần chạy thêm một khối; README ghi rõ đây là mô phỏng. Quota `Query usage per day` phải đặt trước khi bật lịch chạy (chờ nâng cấp trả phí, hạn quyết định 06/01/2027).
+- Tuần 5, Ngày 6: README `data-pipeline-project` giữ lẫn tiếng Việt (phần thời tiết) và tiếng Anh (Project 1) đến Tuần 8 (Portfolio). Ba file thử `Ghi_chu.txt`, `test_bq.ipynb`, `viewtable.ipynb` vẫn để trong repo. Quét bí mật bằng `git grep` (dấu nháy đơn trong PowerShell) phải xong **trước** khi push; kiểm file lạ bằng `git ls-files | Select-String`. Dữ liệu Olist gốc ở `D:\BI\projects\ai-logistics\data\olist`; `OLIST_DIR` trong `.env` của repo mới trỏ tới đường dẫn này.
 
 
 ## 11. Câu hỏi còn mở
@@ -474,8 +482,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao Cell 5c in `Sẽ quét: None MB` và `billed 0.0 MB` trong khi Cell 5 và 5b in 0,01 MB và 20 MB? Chưa hiểu.
 - `EDATE(LastData, -12)` với ngày 29/02 xử lý thế nào, và `DATEADD(LastData, -1, YEAR)` có cho cùng kết quả không? Chưa thử.
 - Lọc slicer bằng measure (`Net Revenue` is not blank) có làm chậm hoặc đổi theo bộ lọc khác không? Chưa kiểm chứng.
-- Thư mục `D:\BI\Dataset` (`customer`, `orders`, `payment`, `product`, `shipping`, `Template.png`) là dữ liệu gì và từ đâu? Có phải Olist không (tên file và dung lượng không giống), giấy phép ra sao? Chưa mở xem nội dung.
-- Nếu là Olist: có phải dữ liệu đóng băng không, và chia khối thời gian thế nào để mô phỏng cập nhật tự động? Chưa kiểm chứng.
+- Tên cột thật của 9 file Olist, và Olist có phải dữ liệu đóng băng không (chia khối thời gian thế nào để mô phỏng cập nhật tự động)? Chưa mở xem.
+- `D:\BI\Dataset` (5 file nhỏ) là dữ liệu gì, từ đâu? Chưa mở xem; không dùng cho Project 2.
 - Chạy pipeline theo lịch bằng gì: Windows Task Scheduler (đề xuất, hợp với `oauth`, không file khóa), BigQuery scheduled query (chỉ chạy SQL), hay GitHub Actions (chưa rõ cách xác thực không dùng khóa)? Quyết định ở Tuần 6.
 - Giấy phép NC có ảnh hưởng thế nào khi dùng dữ liệu trong portfolio để xin việc (vùng xám, chưa phải luật sư)?
 - Nhiều tin tuyển dụng ghi ETL: họ muốn viết pipeline hay chỉ dùng dữ liệu đã qua ETL? Chưa đọc trọn các JD đó.
@@ -502,5 +510,4 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Ôn cuối ngày: **không hỏi lại** những dòng code và khái niệm mình đã trả lời đúng trên khoảng 70% số lần; dành chỗ cho câu mới. Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn.
 Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó; `dry_run=True` chỉ kiểm tra và ước lượng, không cần `job.result()`. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn và không chạm tầng DAX; `LastData` luôn là ngày cuối của cả bảng, không đổi theo slicer; `def` chỉ định nghĩa hàm, `max_mb=100` là tham số mặc định, thiếu `return` thì `None`.
 
-- “Chưa chắc, vẫn hỏi lại”: “MAX(order_date) đổi khi bấm biểu đồ vì bộ lọc thu hẹp tập dòng (không ghi đè); sai âm thầm lộ nhờ đối chiếu SQL độc lập; Top N lọc rồi sắp xếp theo measure”. Hai câu bỏ theo yêu cầu hôm nay (def/return và hàm mb) không ghi vào danh sách đã nắm chắc.
-- “Chưa chắc, vẫn hỏi lại”: len(df) bằng 0 là tập rỗng (không phải null) nên vòng for chạy 0 lần; r""" giữ nguyên dấu \ trong chuỗi Python, r'...' trong SQL là của BigQuery; nhiễu đo ms lớn hơn khác biệt trước và sau thì không kết luận được tốc độ.
+- “Chưa chắc, vẫn hỏi lại” (cập nhật Tuần 5 Ngày 6): `for` với `df` rỗng chạy 0 lần (không phải 1 lần); `def` chỉ định nghĩa, biến trong hàm mất khi hàm kết thúc, `return` đưa ra ngoài, thiếu `return` thì `None`; chữ `r` ngoài `"""` là Python, chữ `r` trong `'...'` là BigQuery; `relationships` tìm khóa mồ côi của fact (không phải NULL); `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua (đúng hôm nay, hỏi thêm một lần). Đã nắm: ETL biến đổi trước khi nạp, ELT nạp rồi biến đổi trong warehouse.

@@ -974,3 +974,37 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - GitHub Actions xác thực với BigQuery thế nào khi không dùng file khóa (chưa tìm hiểu).
 
 **Cần ôn lại đầu ngày sau:** (1) ETL biến đổi trước khi nạp, ELT nạp thô rồi biến đổi trong warehouse; pipeline thời tiết là ETL, dbt là ELT; (2) CC BY-NC-SA: BY ghi nguồn, NC không thương mại, SA cùng giấy phép; không đưa dữ liệu lên GitHub; (3) số đếm Power BI bị thổi phồng vì truy vấn đầu chứa "Power BI"; (4) lỗi không lộ ra thì job tự động nguy hơn chạy tay.
+
+## Tuần 5 - Ngày 6: đóng Project 1 và xác nhận dữ liệu Project 2
+
+**Ý chính (4 ý cần nhớ)**
+- Project 1 đạt đủ 6 tiêu chí: `dbt test --select dim_products fct_net_sales fct_net_sales_inc dim_date` ra `PASS=14 WARN=0 ERROR=0 TOTAL=14` (24,72 giây); thẻ KPI khớp SQL; star schema 2 quan hệ Single; cầu chì `maximum_bytes_billed` ghi trong README; README đủ mục; repo không có bí mật, `.pbix`, `data/`.
+- Quét bí mật phải xong trước khi push, không phải sau. Lệnh quét file đang được Git theo dõi: `git grep -n -i -E '@gmail|AIza|private_key|api_key'` (dấu nháy đơn trong PowerShell). Kết quả: 2 dòng, cả hai an toàn (`.env.example` chữ giữ chỗ, `Day4.ipynb` đọc khóa bằng `os.getenv`). Lệnh chỉ quét bản hiện tại, không quét lịch sử commit.
+- Billing Overview ngày 24/10/2026: tổng chi phí ₫0, tín dụng dùng thử còn nguyên ₫7.791.151, còn 73 ngày (hết 06/01/2027). Trang ghi chi phí có thể trễ hơn 24 giờ, nên chưa chứng minh Refresh Power BI miễn phí; trong README chỉ ghi "chưa đo".
+- `D:\BI\Dataset` không phải Olist. Bộ Olist nằm ở `D:\BI\projects\ai-logistics\data\olist` (9 file: customers, geolocation, order_items, order_payments, order_reviews, orders, products, sellers, product_category_name_translation). Mở bằng VS Code, không mở bằng Excel (CSV đang liên kết với Excel, lưu lại có thể làm hỏng định dạng như mã zip).
+
+**Đã làm**
+- README: chuyển `### Architecture` và `### Data model (diagram)` (Mermaid) từ dưới `## Lưu ý an toàn` vào trong `## Project 1`; mục Screenshots dùng đúng tên file `Doc/Dashboard.png`, `Doc/PowerBI_Model.png`, `Doc/dbt_lineage.png`; thêm dòng về chi phí Refresh chưa đo vào Limitations. Giữ README lẫn tiếng Việt (phần thời tiết) và tiếng Anh (Project 1) đến Tuần 8.
+- `Doc/Definition_of_done.md`: tích đủ 6 mục.
+- Kiểm tra repo: `git ls-files bi_dbt/models` đủ file; lệnh tìm `pbix|.env|profiles|.csv|.parquet|data/|logs/` không in dòng nào. Ba file thử `Ghi_chu.txt`, `test_bq.ipynb`, `viewtable.ipynb` vẫn nằm trong repo (đã quyết giữ nguyên).
+
+**Chỗ dễ nhầm**
+- PowerShell không hiểu `\"` để thoát dấu ngoặc kép: lệnh treo ở dấu `>>`. Thoát bằng Ctrl+C và dùng dấu nháy đơn.
+- Dấu chấm `●` trên tab VS Code nghĩa là file chưa lưu; `git add` lúc đó lấy bản cũ. Ctrl+S trước.
+- Lineage chỉ hiện `fct_net_sales` và hai staging, không hiện `dim_products` và `dim_date`, vì `fct_net_sales` không phụ thuộc vào hai bảng đó.
+
+**Ôn cuối ngày** (3 câu Python, 3 câu nội dung)
+- `for _, row in df.iterrows()` khi `len(df)` là 0: vòng chạy **0 lần**, cell vẫn xanh; `0` là tập rỗng, không phải null.
+- `def stats(sql, max_mb=100)`: Cell chứa `def` chỉ định nghĩa, query chưa gửi cho đến khi gọi `stats(sql)`; `max_mb=100` là tham số mặc định (gọi `stats(sql, 500)` thì đổi); biến trong hàm mất khi hàm kết thúc, `return df` đưa ra ngoài, thiếu thì `df` là `None`.
+- `r"""...r'\s+'..."""`: chữ `r` ngoài cùng là của Python (giữ nguyên `\`); chữ `r` trong `'...'` là của BigQuery (chuỗi thô phía SQL).
+- `PASS=14`: kiểm cấu trúc (`unique`, `not_null`, `accepted_values`, `relationships`), không đối chiếu giá trị với nguồn, không chạm tầng DAX; `relationships` tìm khóa của fact không có trong dimension, không phải NULL.
+- `CALCULATE([Net Revenue], dim_products[department] = "Men")` ở dòng Women hiện số của Men; filter cùng cột `department` bị ghi đè, filter năm từ `dim_date` vẫn đi qua.
+- ETL: biến đổi trước khi nạp (pipeline thời tiết, pandas). ELT: dữ liệu đã nằm trong BigQuery, dbt chỉ gửi `SELECT` lên đó.
+
+**Điều mình chưa chắc**
+- Nội dung `D:\BI\Dataset` (5 file nhỏ, ba file 143, 628 và 225 byte).
+- Tên cột thật của 9 file Olist, và Olist có phải dữ liệu đóng băng không (chưa mở).
+- Lịch sử commit có sạch bí mật không (chỉ quét bản hiện tại).
+- Chi phí thật của Refresh Power BI và của `dbt test` (Billing chưa hiện).
+
+**Cần ôn lại đầu ngày sau:** (1) `for` với `df` rỗng chạy 0 lần; (2) `def` chỉ định nghĩa, biến cục bộ mất, `return` đưa ra ngoài, thiếu `return` thì `None`; (3) `r` ngoài là Python, `r` trong SQL là BigQuery; (4) `relationships` tìm khóa mồ côi của fact, không phải NULL; (5) `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua.
