@@ -5,7 +5,7 @@ Dự án học BI + Data Engineering trên BigQuery. Repo gồm hai phần:
 1. **Kho dữ liệu dạng star schema** dựng từ dataset công khai `thelook_ecommerce` (dataset `dwh`).
 2. **Pipeline thời tiết** chạy bằng Python: gọi API, làm sạch, kiểm tra chất lượng, nạp lên BigQuery (dataset `raw`).
 
-> Trạng thái: đang trong quá trình học (Tuần 1/8). Các phần dbt và dashboard BI sẽ được bổ sung sau.
+> Trạng thái: đang trong quá trình học (Tuần 5/8). Project 1 (net sales analytics) đã xong; Project 2 (dữ liệu thật) bắt đầu ở Tuần 6.
 
 ## Mục tiêu
 
@@ -151,8 +151,6 @@ and a Power BI dashboard. Built to learn the toolchain; the data is simulated.
 2. Revenue by month
 3. Which product categories sell the most, and at what margin
 
-### Architecture
-(Mermaid diagram here)
 
 ### Data model
 Star schema. One row of `fct_net_sales` = one order item with status `Complete`.
@@ -186,6 +184,7 @@ no `SELECT *`, Import mode so dashboard clicks do not query BigQuery.
 - The latest order date can be later than today, which confirms the data is synthetic
 - The .pbix file is not in the repo; screenshots are in Doc/
 - Orders are assumed to belong to one department (verified for 2026 only)
+- Refresh cost of Power BI not measured
 
 ### How to run
 1. conda activate bi, gcloud auth application-default login
@@ -193,4 +192,6 @@ no `SELECT *`, Import mode so dashboard clicks do not query BigQuery.
 3. Open the dashboard in Power BI Desktop and Refresh
 
 ### Screenshots
-(dashboard_overview.png, powerbi_model_view.png, dbt_lineage.png)
+![Dashboard overview](Doc/dashboard_overview.png)
+![Power BI model view](Doc/powerbi_model_view.png)
+![dbt lineage](Doc/dbt_lineage.png)
