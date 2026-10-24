@@ -83,6 +83,20 @@ CONTEXT.md, Notes.md      Ghi chú học tập
 - Thư mục `data/` và `logs/` không được commit.
 - Mọi query dùng `maximum_bytes_billed` làm cầu chì chi phí.
 
+
+
+## Project 1: Net sales analytics on thelook_ecommerce
+
+An end-to-end BI project: BigQuery public data, dbt models with tests,
+and a Power BI dashboard. Built to learn the toolchain; the data is simulated.
+
+
+### What it answers
+1. Revenue and gross profit this year vs the same period last year
+2. Revenue by month
+3. Which product categories sell the most, and at what margin
+
+
 ### Architecture
 
 ```mermaid
@@ -104,7 +118,7 @@ flowchart LR
   C --> E --> F
 ```
 
-### Data model
+### Data model (diagram)
 
 ```mermaid
 erDiagram
@@ -140,17 +154,6 @@ erDiagram
     string weekday_name
   }
 ```
-
-## Project 1: Net sales analytics on thelook_ecommerce
-
-An end-to-end BI project: BigQuery public data, dbt models with tests,
-and a Power BI dashboard. Built to learn the toolchain; the data is simulated.
-
-### What it answers
-1. Revenue and gross profit this year vs the same period last year
-2. Revenue by month
-3. Which product categories sell the most, and at what margin
-
 
 ### Data model
 Star schema. One row of `fct_net_sales` = one order item with status `Complete`.
