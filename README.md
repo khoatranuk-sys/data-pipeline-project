@@ -192,6 +192,6 @@ no `SELECT *`, Import mode so dashboard clicks do not query BigQuery.
 3. Open the dashboard in Power BI Desktop and Refresh
 
 ### Screenshots
-![Dashboard overview](Doc/dashboard_overview.png)
-![Power BI model view](Doc/powerbi_model_view.png)
+![Dashboard overview](Doc/Dashboard.png)
+![Power BI model view](Doc/PowerBI_Model.png)
 ![dbt lineage](Doc/dbt_lineage.png)
