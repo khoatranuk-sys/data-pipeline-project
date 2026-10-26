@@ -980,7 +980,7 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 **Ý chính (4 ý cần nhớ)**
 - Project 1 đạt đủ 6 tiêu chí: `dbt test --select dim_products fct_net_sales fct_net_sales_inc dim_date` ra `PASS=14 WARN=0 ERROR=0 TOTAL=14` (24,72 giây); thẻ KPI khớp SQL; star schema 2 quan hệ Single; cầu chì `maximum_bytes_billed` ghi trong README; README đủ mục; repo không có bí mật, `.pbix`, `data/`.
 - Quét bí mật phải xong trước khi push, không phải sau. Lệnh quét file đang được Git theo dõi: `git grep -n -i -E '@gmail|AIza|private_key|api_key'` (dấu nháy đơn trong PowerShell). Kết quả: 2 dòng, cả hai an toàn (`.env.example` chữ giữ chỗ, `Day4.ipynb` đọc khóa bằng `os.getenv`). Lệnh chỉ quét bản hiện tại, không quét lịch sử commit.
-- Billing Overview ngày 24/10/2026: tổng chi phí ₫0, tín dụng dùng thử còn nguyên ₫7.791.151, còn 73 ngày (hết 06/01/2027). Trang ghi chi phí có thể trễ hơn 24 giờ, nên chưa chứng minh Refresh Power BI miễn phí; trong README chỉ ghi "chưa đo".
+- Billing Overview ngày 24/10/2026: tổng chi phí ₫0, tín dụng dùng thử còn nguyên, còn 73 ngày (hết 06/01/2027). Trang ghi chi phí có thể trễ hơn 24 giờ, nên chưa chứng minh Refresh Power BI miễn phí; trong README chỉ ghi "chưa đo".
 - `D:\BI\Dataset` không phải Olist. Bộ Olist nằm ở `D:\BI\projects\ai-logistics\data\olist` (9 file: customers, geolocation, order_items, order_payments, order_reviews, orders, products, sellers, product_category_name_translation). Mở bằng VS Code, không mở bằng Excel (CSV đang liên kết với Excel, lưu lại có thể làm hỏng định dạng như mã zip).
 
 **Đã làm**
@@ -1008,3 +1008,74 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Chi phí thật của Refresh Power BI và của `dbt test` (Billing chưa hiện).
 
 **Cần ôn lại đầu ngày sau:** (1) `for` với `df` rỗng chạy 0 lần; (2) `def` chỉ định nghĩa, biến cục bộ mất, `return` đưa ra ngoài, thiếu `return` thì `None`; (3) `r` ngoài là Python, `r` trong SQL là BigQuery; (4) `relationships` tìm khóa mồ côi của fact, không phải NULL; (5) `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua.
+
+## Tuần 6 - Ngày 1: tạo repo olist-bi-project
+
+**Ý chính (4 ý cần nhớ)**
+- `.env` chứa giá trị thật của máy mình (đường dẫn, sau này có thể là khóa), bị `.gitignore` chặn nên không lên GitHub. `.env.example` chỉ có tên biến, có commit, để người clone biết cần cấu hình gì. Repo công khai nên không bao giờ commit `.env`.
+- `.gitignore` phải có luật chặn trước khi có file dữ liệu đầu tiên, vì file đã commit rồi thì thêm vào `.gitignore` không gỡ được khỏi lịch sử. `git check-ignore -v <đường dẫn>` in ra dòng luật đang chặn file đó; không in gì nghĩa là file chưa bị chặn.
+- Quét bí mật phải xong trước `git push`: `git grep --cached -n -i -E '@gmail|AIza|private_key|api_key'` (dấu nháy đơn trong PowerShell) quét các file đã `git add`; không in dòng nào là sạch. Lệnh chỉ quét bản đang chuẩn bị commit, không quét lịch sử.
+- README của Project 2 ghi ngay từ đầu nguồn dữ liệu, giấy phép CC BY-NC-SA 4.0, dữ liệu không nằm trong repo, và dự án không dùng cho khách trả tiền.
+
+**Đã làm**
+- Repo `olist-bi-project` (Public) trên GitHub, clone về `D:\BI\projects\olist-bi-project`; khối luật cuối `.gitignore`; `.env`, `.env.example`, `README.md`; notebook `Notebook/Week01/Day1.ipynb`.
+- Notebook đọc `OLIST_DIR` từ `.env`, liệt kê file `.csv` và đọc tiêu đề từng file. 9 file, tổng khoảng 120 MB (lớn nhất `geolocation` 58,44 MB; nhỏ nhất `product_category_name_translation` khoảng 0 MB). Số cột: customers 5, geolocation 5, order_items 7, order_payments 5, order_reviews 7, orders 8, products 9, sellers 4, translation 2. Chưa thấy trọn tên cột của `orders` (cột thứ 8) và `products` (cột thứ 9) vì ảnh bị cắt.
+
+**Chỗ dễ nhầm**
+- Thư mục tên `Notebook/` (viết hoa) khác `notebooks/` trong hướng dẫn; gõ `git add` theo tên thật.
+- `check-ignore` có thể hiện luật của khối mình thêm thay vì luật có sẵn của mẫu Python; miễn là có in dòng thì file đã bị chặn.
+- Dấu `●` trên tab VS Code nghĩa là file chưa lưu; `git add` lúc đó lấy bản cũ.
+
+
+- **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng ý chính: `nrows=0` chỉ đọc tiêu đề; `files` rỗng thì vòng `for` chạy 0 lần; `.gitignore` thêm sau không gỡ được file đã lên GitHub. Cần ôn: `.tolist()` đổi sang list; mốc quyết định là `git add`/`commit`, lịch sử vẫn giữ file; `print(len(files))` đứng trước vòng `for` để bắt trường hợp rỗng; `git grep --cached` không quét lịch sử và chỉ quét 4 mẫu (không liên quan `.env`); `os.getenv` đọc biến môi trường, `load_dotenv` mới đọc file `.env`, `""` là giá trị mặc định; CC BY-NC-SA: BY ghi nguồn, NC không thương mại, SA cùng giấy phép; không đưa dữ liệu lên GitHub là quyết định thận trọng.
+
+**Điều mình chưa chắc**
+- Khóa và grain thật của `order_items` (cặp `order_id`, `order_item_id`?), `order_payments` (cặp `order_id`, `payment_sequential`?), `order_reviews` (`review_id` có duy nhất không?), `geolocation` (một dòng là gì?): chưa kiểm bằng SQL.
+- `customer_id` gắn theo đơn hay theo người, và vai trò của `customer_unique_id` (mình nhớ là theo đơn, chưa kiểm trên dữ liệu này).
+- Cột thứ 8 của `orders` và cột thứ 9 của `products` (ảnh bị cắt).
+- Olist có phải dữ liệu đóng băng không (chia khối thời gian thế nào để mô phỏng cập nhật tự động).
+
+**Cần ôn lại đầu ngày sau:** (1) `.env` khác `.env.example` (cái nào commit, cái nào không, vì sao); (2) `check-ignore -v` in dòng luật, không in gì là chưa chặn; (3) quét bí mật trước push, chỉ quét bản hiện tại; (4) `pd.read_csv(f, nrows=0)` chỉ đọc tiêu đề; (5) `load_dotenv` đọc file `.env` và nạp vào biến môi trường, `os.getenv` chỉ đọc biến đã được nạp; (6) CC BY-NC-SA: BY ghi nguồn, NC không thương mại, SA giữ cùng giấy phép.
+
+## Tuần 6 - Ngày 2: khám phá 9 file Olist (tên cột, grain, khóa nối, khoảng ngày)
+
+**Ý chính (4 ý cần nhớ)**
+- Phải kiểm grain trước khi nối: nối sang bảng có nhiều dòng cho một khóa thì dòng bên trái bị nhân lên, SUM và COUNT cộng lặp mà không có lỗi nào. `geolocation` 1.000.163 dòng nhưng chỉ khoảng 19.015 mã zip khác nhau, nên một dòng không phải một mã zip; nối thẳng theo zip là nhân dòng (khách A có 1 dòng, zip có 3 dòng thì ra 3 dòng, 100 thành 300).
+- Khóa mồ côi (có ở bảng con, không có ở bảng cha) khác NULL (không có khóa). `products.product_category_name` sang `translation`: NULL 610 (nằm ngay trong `products`) và mồ côi 13 (số dòng sản phẩm, không phải số tên category), tổng 623 sản phẩm không có tên tiếng Anh. `join` thường làm 623 sản phẩm biến mất âm thầm; `left join` giữ lại và cột tên tiếng Anh là NULL.
+- Dữ liệu Olist là bản chụp lịch sử, đơn từ 2016-09-04 đến 2018-10-17, không tự cập nhật. "Cập nhật tự động" của Project 2 sẽ mô phỏng bằng cách chia theo `orders.order_purchase_timestamp` (từng tháng) và nạp thêm một khối mỗi lần chạy; `items`, `payments`, `reviews` đi theo `order_id`. README phải ghi rõ đây là mô phỏng.
+- `pd.to_datetime(..., errors="coerce")` đổi ngày hỏng thành `NaT` thay vì dừng cell; `ts.isna().sum()` đếm số ngày hỏng (hôm nay là 0).
+
+**Đã làm** (notebook đọc dữ liệu bằng pandas, không đụng BigQuery nên 0 byte, không tốn tiền)
+
+| Bảng | Số dòng | Khóa đã kiểm | Kết quả |
+|---|---|---|---|
+| `customers` | 99.441 | `customer_id` | trùng 0 |
+| `orders` | 99.441 | `order_id` | trùng 0 |
+| `items` | 112.650 | `order_id`, `order_item_id` | trùng 0 |
+| `payments` | 103.886 | `order_id`, `payment_sequential` | trùng 0 |
+| `reviews` | 99.224 | `review_id` | trùng 814 |
+| `reviews` | 99.224 | `review_id`, `order_id` | trùng 0 |
+| `products` | 32.951 | `product_id` | trùng 0 |
+| `sellers` | 3.095 | `seller_id` | trùng 0 |
+| `translation` | 71 | `product_category_name` | trùng 0 |
+| `geolocation` | 1.000.163 | `geolocation_zip_code_prefix` | trùng 981.148 |
+
+- Khóa nối (con tìm cha), mồ côi 0 và NULL 0: `items.order_id` sang `orders`, `items.product_id` sang `products`, `items.seller_id` sang `sellers`, `orders.customer_id` sang `customers`, `payments.order_id` sang `orders`, `reviews.order_id` sang `orders`. Ngoại lệ: `products.product_category_name` sang `translation` (NULL 610, mồ côi 13).
+- Ngày đặt hàng: 0 ngày không đọc được; đơn thưa ở cuối 2016 (2016-09: 4, 2016-10: 324, 2016-12: 1, không có 2016-11), bắt đầu dày từ 2017-01 (800), đỉnh 2017-11 (7.544), quanh 6.700 đến 7.200 trong 2018; 2018-10 là tháng dở (ngày cuối 17/10).
+
+**Chỗ dễ nhầm**
+- `review_id` không duy nhất (814 trùng); khóa duy nhất tốt nhất mình tìm thấy là cặp (`review_id`, `order_id`). Chưa biết vì sao có `review_id` lặp.
+- Phép kiểm mồ côi chỉ đi một chiều (con tìm cha); đơn không có mặt hàng nào chưa kiểm.
+- Output Cell 5 bị cắt: chỉ thấy đuôi `processing` 301, `created` 5, `approved` 2; danh sách trạng thái đầy đủ và các tháng 2018-06 đến 2018-10 chưa xem.
+
+**Ôn cuối ngày** (6 câu: 3 Python, 3 nội dung)
+- Câu 1: `found_in_parent = child_not_null.isin(parent_values)` ra dãy True/False dài bằng số dòng bảng con; đúng ý chính, thiếu ý kiểu và độ dài. Câu 2: nhầm chỗ 610 (NULL trong `products`), 13 là mồ côi; hiểu đúng lý do báo cáo sai âm thầm. Câu 3: `missing_cols` rỗng thì `print` và `continue` bị bỏ qua, nhưng code vẫn chạy tiếp Bước 3 và in kết quả. Câu 4: chưa biết, sau ví dụ khách A thì đúng. Câu 5: đúng (`coerce` đổi ngày hỏng thành `NaT`, `isna().sum()` đếm). Câu 6: chưa biết; chọn đúng cột chia theo thời gian, nhưng gọi nhầm tên là `order_date` (đúng là `order_purchase_timestamp`).
+
+**Điều mình chưa chắc**
+- Tên đầy đủ các cột còn lại của 9 bảng (chỉ chắc các cột đã chạy qua Cell 3, 4, 5).
+- `customer_unique_id` có lặp qua nhiều `customer_id` không (một người nhiều đơn), chưa kiểm.
+- Danh sách 13 sản phẩm mồ côi thuộc mấy category khác nhau.
+- Cách chia `items`, `payments`, `reviews` theo khối tháng cho khớp `orders`; `reviews` có chữ xuống dòng trong ô khi nạp CSV, mã zip giữ số 0 đầu, encoding: chưa thử.
+- Kiểu cột ở `olist_raw`: khai báo đủ kiểu hay nạp toàn bộ STRING rồi ép kiểu trong dbt staging (bạn chưa chốt).
+
+**Cần ôn lại đầu ngày sau:** (1) nối sang bảng nhiều dòng cho một khóa thì dòng bị nhân lên, kiểm số dòng trước và sau khi nối; (2) NULL (không có khóa) khác mồ côi (có khóa nhưng bảng cha không có), `left join` để không mất dòng; (3) `isin` trả dãy True/False dài bằng bảng con; (4) code chạy tiếp Bước 3 khi `missing_cols` rỗng; (5) tên cột chia thời gian là `order_purchase_timestamp`, dữ liệu là bản chụp 2016 đến 2018 nên cập nhật tự động chỉ là mô phỏng.

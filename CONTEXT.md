@@ -56,6 +56,7 @@
 
 - Dữ liệu Olist (ngoài repo, **không commit**, không chép vào `data/`): `D:\BI\projects\ai-logistics\data\olist`, 9 file CSV (`olist_customers_dataset`, `olist_geolocation_dataset`, `olist_order_items_dataset`, `olist_order_payments_dataset`, `olist_order_reviews_dataset`, `olist_orders_dataset`, `olist_products_dataset`, `olist_sellers_dataset`, `product_category_name_translation`). Chưa mở xem tên cột. CSV đang liên kết với Excel: mở bằng VS Code, không lưu lại bằng Excel. Thư mục `D:\BI\Dataset` (5 file nhỏ và `Template.png`) **không phải Olist**, nội dung chưa biết, không dùng cho Project 2. Giấy phép CC BY-NC-SA 4.0 xác nhận ngày 23/10/2026 trên trang Kaggle của Olist.
 - Thư mục `Doc/` (từ Tuần 5 Ngày 6): `Dashboard.png`, `PowerBI_Model.png`, `dbt_lineage.png`, `star_schema.png`, `Definition_of_done.md` (6 mục Project 1, đã tích đủ). Tên file phải khớp từng chữ với README (GitHub phân biệt hoa thường).
+- Repo Project 2 (từ Tuần 6 Ngày 1): `olist-bi-project` (Public, tài khoản `khoatranuk-sys`), thư mục trên máy `D:\BI\projects\olist-bi-project`. `.gitignore` (mẫu Python của GitHub + khối luật riêng ở cuối: `.env`, `data/`, `olist/`, `*.csv`, `*.parquet`, `*.pbix`, `logs/`, `target/`, `dbt_packages/`). `.env` (không commit) và `.env.example` (có commit) có 3 biến: `OLIST_DIR`, `GCP_PROJECT`, `BQ_LOCATION`. Notebook: `Notebook/Week01/Day1.ipynb` (thư mục tên viết hoa, số ít). Dùng lại project GCP `bq-learning-510104`, không tạo project mới; Project 2 tách bằng dataset riêng.
 
 ## 5. Chi phí và an toàn
 
@@ -78,7 +79,14 @@
 - Tuần 5 Ngày 1: `dbt run --select dim_products fct_net_sales` (`PASS=2`, `CREATE TABLE` 45,3 nghìn dòng 10,5 MiB và 29,1 nghìn dòng 2,5 MiB) rồi `dbt test --select dim_products fct_net_sales dim_date` (`PASS=11 TOTAL=11`, gồm cả test `relationships` của `fct_net_sales_inc` vì nó đụng tới `dim_products`). Cell 2 billed 20 MB (hai bảng), Cell 3 billed 10 MB (một bảng). Chi phí của 11 test và của Refresh Power BI chưa đo.
 - Tuần 5 Ngày 2: chỉ có Cell 2 và Cell 3 đọc `fct_net_sales` (một bảng): Cell 3 processed 0,69 MB, billed 10 MB. Power BI Import mode không tốn byte khi tạo measure, lọc, bấm slicer. Không `dbt run`, không `dbt test`, không Refresh Power BI trong ngày.
 - Tuần 5 Ngày 4: Cell 3 và Cell 4 mỗi cell đọc một bảng, billed 10 MB. Mỗi cell đọc `INFORMATION_SCHEMA.JOBS` (Cell 5, 5b) billed 20 MB, processed 0,01 MB (lần thứ nhiều mà chưa hiểu); Cell 5c in `None` và `0.0 MB`. Lần Close & Apply (bỏ cột) không thấy trong `JOBS` trong 24 giờ và 60 phút; Billing Reports ngày 22/10 chưa có dòng chi phí nào (báo cáo nói chi phí có thể chậm hơn 24 giờ). Byte Refresh của Power BI vẫn chưa biết; không ghi "miễn phí".
-- Tuần 5 Ngày 6: Billing Overview ngày 24/10/2026 hiện tổng chi phí ₫0, tín dụng dùng thử còn nguyên ₫7.791.151, còn 73 ngày (hết 06/01/2027). Chi phí có thể trễ hơn 24 giờ; chưa chứng minh Refresh Power BI miễn phí. `dbt test` 4 mart (14 test) chạy 24,72 giây, chi phí thật chưa đo.
+- Tuần 5 Ngày 6: Billing Overview ngày 24/10/2026 hiện tổng chi phí ₫0, tín dụng dùng thử còn nguyên, còn 73 ngày (hết 06/01/2027). Chi phí có thể trễ hơn 24 giờ; chưa chứng minh Refresh Power BI miễn phí. `dbt test` 4 mart (14 test) chạy 24,72 giây, chi phí thật chưa đo.
+- **Tuần 6, Ngày 1**: tạo repo `olist-bi-project`.
+  - **Repo**: tạo trên GitHub (Public, README, `.gitignore` Python, không chọn License), clone về `D:\BI\projects\olist-bi-project`. Thêm khối luật vào `.gitignore` trước khi có file dữ liệu. `git check-ignore -v` xác nhận bị chặn: `.env` (dòng 224), `data/` (dòng 225), `*.pbix` (dòng 229).
+  - **README khởi đầu** (tiếng Anh): mục tiêu, nguồn dữ liệu (Brazilian E-Commerce Public Dataset by Olist), giấy phép CC BY-NC-SA 4.0, ghi rõ dữ liệu không nằm trong repo và dự án chỉ để học và portfolio, không dùng cho khách trả tiền (tiêu chí 8).
+  - **Notebook** `Notebook/Week01/Day1.ipynb`: đọc `OLIST_DIR` từ `.env` bằng `python-dotenv`, liệt kê file `.csv`, đọc tiêu đề bằng `pd.read_csv(f, nrows=0)`. [ĐIỀN: số file và tên cột thật từ output Cell 2]
+  - **Commit**: 3 commit trên GitHub (1 của GitHub, 2 của mình): `Add project skeleton: README, .gitignore rules, .env.example` và `Add Day 1 notebook: list Olist files and columns`. Không có `.env` trên GitHub.
+  - **Chi phí**: không đụng BigQuery nên không tốn byte.
+  - **Checklist Excel**: tick việc tạo repo Project 2 của Tuần 6 (kiểm tra lại tên dòng và số tổng hiển thị).
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -173,6 +181,12 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **`INFORMATION_SCHEMA.JOBS`**: mỗi thẻ và biểu đồ là một query riêng, bộ lọc ngày thành `WHERE order_date >= ... AND ... <= ...`, mỗi query chạy 0,2 đến 0,5 giây trong BigQuery, processed 0,04 đến 0,06 MB, billed 10 MB; query giống hệt (`cache_hit = TRUE`) thì processed và billed bằng 0. Cảm giác chậm không đến từ BigQuery. Trong khoảng 8 phút chỉnh bộ lọc có ít nhất 15 query billed (khoảng 150 MB).
   - **Ôn Python cuối ngày**: xong 6/6 dòng (`.to_dataframe()`, `for _, row in df_q.iterrows()`, `print("-" * 60)`, `QueryJobConfig(use_query_cache=False, maximum_bytes_billed=...)`, f-string với `"""`, `print(row["query"])`). Cell 14 ban đầu không in gì vì `INTERVAL 1 HOUR` làm `df_q` rỗng; nới 24 giờ thì ra.
   - **Checklist Excel**: xong 3 việc (IAM, view, MV; kết nối; dashboard); **Tuần 2 hoàn tất 7/7**, tổng 23/61.
+  - **Repo**: tạo trên GitHub (Public, README, `.gitignore` Python, không chọn License), clone về `D:\BI\projects\olist-bi-project`. Thêm khối luật vào `.gitignore` trước khi có file dữ liệu. `git check-ignore -v` xác nhận bị chặn: `.env` (dòng 224), `data/` (dòng 225), `*.pbix` (dòng 229).
+  - **README khởi đầu** (tiếng Anh): mục tiêu, nguồn dữ liệu (Brazilian E-Commerce Public Dataset by Olist), giấy phép CC BY-NC-SA 4.0, ghi rõ dữ liệu không nằm trong repo và dự án chỉ để học và portfolio, không dùng cho khách trả tiền (tiêu chí 8).
+  - **Notebook** `Notebook/Week01/Day1.ipynb`: đọc `OLIST_DIR` từ `.env` bằng `python-dotenv`, liệt kê file `.csv`, đọc tiêu đề bằng `pd.read_csv(f, nrows=0)`. [ĐIỀN: số file và tên cột thật từ output Cell 2]
+  - **Commit**: 3 commit trên GitHub (1 của GitHub, 2 của mình): `Add project skeleton: README, .gitignore rules, .env.example` và `Add Day 1 notebook: list Olist files and columns`. Không có `.env` trên GitHub.
+  - **Chi phí**: không đụng BigQuery nên không tốn byte.
+  - **Checklist Excel**: tick việc tạo repo Project 2 của Tuần 6 (kiểm tra lại tên dòng và số tổng hiển thị).
 
 - Tuần 3, Ngày 1: billing, kiểm soát chi phí, gỡ hạn tự xóa của sandbox.
  - Billing, budget, quota: xem mục 5.
@@ -301,13 +315,35 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Dữ liệu Project 2**: xác nhận thư mục Olist ở `D:\BI\projects\ai-logistics\data\olist` (9 file). `D:\BI\Dataset` không phải Olist.
   - **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng: `CALCULATE` ghi đè filter cùng cột; ETL và ELT. Cần ôn: `for` với `df` rỗng chạy 0 lần; `def` chỉ định nghĩa, thiếu `return` thì `None`; chữ `r` ngoài là Python còn chữ `r` trong SQL là BigQuery; `relationships` tìm khóa mồ côi, không phải NULL.
   - **Checklist Excel**: tick việc hoàn thiện Project 1 của Tuần 5 (kiểm tra lại tên dòng và số tổng hiển thị).
+
+  - **Tuần 6, Ngày 1**: tạo repo `olist-bi-project`.
+  - **Repo**: tạo trên GitHub (Public, README, `.gitignore` Python, không chọn License), clone về `D:\BI\projects\olist-bi-project`. Thêm khối luật vào `.gitignore` trước khi có file dữ liệu. `git check-ignore -v` xác nhận bị chặn: `.env` (dòng 224), `data/` (dòng 225), `*.pbix` (dòng 229).
+  - **README khởi đầu** (tiếng Anh): mục tiêu, nguồn dữ liệu (Brazilian E-Commerce Public Dataset by Olist), giấy phép CC BY-NC-SA 4.0, ghi rõ dữ liệu không nằm trong repo và dự án chỉ để học và portfolio, không dùng cho khách trả tiền (tiêu chí 8).
+  - **Notebook** `Notebook/Week01/Day1.ipynb`: đọc `OLIST_DIR` từ `.env` bằng `python-dotenv`, liệt kê file `.csv`, đọc tiêu đề bằng `pd.read_csv(f, nrows=0)`. Kết quả: 9 file, tổng khoảng 120 MB (lớn nhất `geolocation` 58,44 MB; nhỏ nhất `product_category_name_translation` khoảng 0 MB). Số cột: customers 5, geolocation 5, order_items 7, order_payments 5, order_reviews 7, orders 8, products 9, sellers 4, translation 2. Chưa thấy trọn tên cột của `orders` (cột thứ 8) và `products` (cột thứ 9) vì ảnh bị cắt.
+  - **Commit**: 3 commit trên GitHub (1 của GitHub, 2 của mình): `Add project skeleton: README, .gitignore rules, .env.example` và `Add Day 1 notebook: list Olist files and columns`. Không có `.env` trên GitHub.
+  - **Chi phí**: không đụng BigQuery nên không tốn byte.
+  - **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng ý chính: `nrows=0` chỉ đọc tiêu đề; `files` rỗng thì vòng `for` chạy 0 lần; `.gitignore` thêm sau không gỡ được file đã lên GitHub. Cần ôn: `.tolist()` đổi sang list; mốc quyết định là `git add`/`commit`, lịch sử vẫn giữ file; `print(len(files))` đứng trước vòng `for` để bắt trường hợp rỗng; `git grep --cached` không quét lịch sử và chỉ quét 4 mẫu (không liên quan `.env`); `os.getenv` đọc biến môi trường, `load_dotenv` mới đọc file `.env`, `""` là giá trị mặc định; CC BY-NC-SA: BY ghi nguồn, NC không thương mại, SA cùng giấy phép; không đưa dữ liệu lên GitHub là quyết định thận trọng.
+  
+  - **Checklist Excel**: tick việc tạo repo Project 2 của Tuần 6 (kiểm tra lại tên dòng và số tổng hiển thị).
+
+  - **Tuần 6, Ngày 2**: khám phá 9 file Olist (tên cột, grain, khóa nối, khoảng ngày). Notebook `Notebook/Week02/Day2.ipynb` trong repo `olist-bi-project` (sửa lại nếu bạn đặt tên khác).
+  - **Đã làm**: đọc 9 file vào pandas (`dtype=str`), kiểm khóa dự đoán, khóa nối con tìm cha, khoảng ngày. Không đụng BigQuery nên không tốn byte.
+  - **Số dòng và grain** (khớp Ngày 1 ở số cột): `customers` 99.441 (`customer_id`), `orders` 99.441 (`order_id`), `items` 112.650 (`order_id` + `order_item_id`), `payments` 103.886 (`order_id` + `payment_sequential`), `reviews` 99.224 (`review_id` trùng 814; `review_id` + `order_id` trùng 0), `products` 32.951, `sellers` 3.095, `translation` 71, `geolocation` 1.000.163 (zip trùng 981.148, còn khoảng 19.015 zip khác nhau, không có khóa tự nhiên theo zip).
+  - **Khóa nối**: 6 mối nối con tìm cha đều NULL 0, mồ côi 0 (`items` sang `orders`, `products`, `sellers`; `orders` sang `customers`; `payments` và `reviews` sang `orders`). Ngoại lệ: `products.product_category_name` sang `translation` có NULL 610 và mồ côi 13 (13 là số dòng sản phẩm, chưa biết mấy category). Chưa kiểm chiều ngược (đơn không có mặt hàng).
+  - **Khoảng ngày**: `orders` từ 2016-09-04 đến 2018-10-17, 0 ngày không đọc được; thưa ở cuối 2016 (không có 2016-11), dày từ 2017-01, 2018-10 là tháng dở. Danh sách `order_status` đầy đủ chưa xem (output bị cắt, chỉ thấy `processing` 301, `created` 5, `approved` 2).
+  - **Kết luận**: Olist là bản chụp lịch sử, không tự cập nhật; "cập nhật tự động" của Project 2 sẽ mô phỏng bằng cách nạp từng khối tháng theo `order_purchase_timestamp`.
+  - **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng: `errors="coerce"`, ví dụ nhân dòng khi nối (khách A 300 thay vì 100). Cần ôn: `isin` trả dãy True/False dài bằng bảng con; 610 là NULL trong `products`, 13 là mồ côi; code vẫn chạy tiếp Bước 3 khi `missing_cols` rỗng; cột chia thời gian là `order_purchase_timestamp`.
+  - **Checklist Excel**: tick việc khám phá dữ liệu Olist của Tuần 6 nếu có (mình chưa đọc được file nên bạn tự đối chiếu tên dòng và số tổng hiển thị).
+
 ## 8. Đang làm
 
-- **Tuần 5** (đang làm): xong DAX `CALCULATE` và filter context (Ngày 1), time intelligence (Ngày 2), thiết kế dashboard (Ngày 3), tối ưu hiệu năng (Ngày 4). Còn lại theo checklist: hoàn thiện Project 1 (README tiếng Anh, sơ đồ kiến trúc, tiêu chí xong), chốt ngách và dữ liệu thật.
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
-- **Tuần 5** (còn việc cuối): Project 1 đã xong. Còn chốt ngách và dữ liệu thật cho Project 2 (đã xác nhận thư mục Olist, chưa mở xem tên cột).
-- **Tuần 6, Ngày 1** (tiếp theo): tạo repo mới `olist-bi-project`, `.gitignore` trước khi có file dữ liệu.
+- **Tuần 6, Ngày 1 và Ngày 2**: xong (repo `olist-bi-project`; khám phá 9 file Olist).
+- **Tuần 6, Ngày 3** (tiếp theo, đề xuất): chốt cách nạp vào dataset `olist_raw` (US) bằng load job, rồi nạp thử một bảng nhỏ (`translation`, 71 dòng). Cần chốt trước: kiểu cột ở raw (khai báo đủ kiểu hay toàn bộ STRING rồi ép kiểu trong dbt staging), và cách xử lý `reviews` (chữ xuống dòng trong ô), mã zip (giữ số 0 đầu).
+
+
 ## 9. Lỗi đã gặp và cách sửa
+
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
 - **Gõ nhầm `git config user.mail`** thay vì `user.email`: Git không báo lỗi, khóa sai vô tác dụng. Sửa: đặt lại `user.email` và `--unset user.mail`.
 - **Commit hiển thị sai tác giả trên GitHub**: email trong Git thuộc một tài khoản GitHub khác. Sửa: dùng email noreply của tài khoản đang dùng.
@@ -381,8 +417,6 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`Custom key 'data_test' found` (thiếu chữ `s`)**: đúng là `data_tests:`. dbt chỉ báo dòng vàng `CustomKeyInObjectDeprecation`, bỏ qua khóa lạ nên test bị mất âm thầm; dấu hiệu là số test: `17 data tests` thay vì `18`. Luôn so số `Found ... data tests` với số mong đợi.
 - **Power BI: không thấy "Hide in report view"**: chuột phải cột → **Hide**; **View hidden** là công tắc hiện lại các cột đã ẩn, bật một lần cho cả mô hình. Chọn nhiều cột bằng Ctrl. Giao diện mới có nhóm Calendar options thay nút Mark as date table cũ.
 - **Kéo `dim_date` sang `fct_net_sales` ra "One to many"**: không sai, chỉ là cách đọc theo bảng From. Kiểm tra bằng Manage relationships: phía một là dimension, Single, active.
-- **Tuần 4** (hoàn tất 5/5): viết test dbt, sinh dbt docs, viết incremental model, viết measure và DAX cơ bản, chuẩn hóa star schema trong Power BI (thêm `dim_date`). Hai việc CV và LinkedIn đã chuyển về Tuần 8. Tùy chọn: dbt snapshot (SCD Type 2).
-- **Tuần 5** (tiếp theo): Power BI nâng cao (DAX: CALCULATE, filter context; time intelligence; thiết kế dashboard; tối ưu hiệu năng), hoàn thiện Project 1, chốt ngách và dữ liệu thật.
 - **`BadRequest: Unclosed identifier literal at [7:6]`** khi chạy SQL trong notebook: dòng `FROM` thiếu dấu backtick đóng quanh tên bảng (`[dòng:cột]` chỉ vị trí trong câu SQL, không phải trong cell). Lỗi dừng ở bước kiểm tra cú pháp nên không tốn tiền. Cùng cell còn có chữ `department` gõ thừa (`departmnent`); lỗi gõ tên cột chỉ lộ sau khi lỗi dấu backtick được sửa.
 - **Power BI: Matrix chưa đổi sau khi chọn slicer**: thành phần cập nhật không cùng lúc, chụp ảnh quá sớm sẽ thấy số cũ. Chờ vài giây rồi mới đối chiếu (đã gặp ở Data Studio, giờ gặp ở Power BI).
 - **`BadRequest: Syntax error: Unexpected keyword ORDER at [16:39]`** khi chạy SQL: thừa dấu phẩy giữa `PARTITION BY` và `ORDER BY` trong `OVER (...)` (`PARTITION BY y, ORDER BY mth`). Đúng là `OVER (PARTITION BY y ORDER BY mth)`. `[dòng:cột]` tính từ dòng đầu của câu SQL (dòng ngay sau `"""` là dòng 1); lỗi dừng ở bước dry run nên không tốn tiền.
@@ -445,7 +479,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 5, Ngày 5: Project 2 là một repo mới hoàn toàn tên `olist-bi-project` (cùng tài khoản `khoatranuk-sys`, không dùng chung với `data-pipeline-project`). Dữ liệu Olist gốc giữ ở một chỗ (`D:\BI\projects\ai-logistics\data\olist`), không chép vào repo; script đọc đường dẫn từ `.env` (`OLIST_DIR`). Nạp lên BigQuery bằng load job vào dataset riêng (`olist_raw`, US); dbt dùng dataset riêng, tách khỏi `dbt_dev`. `.gitignore` tạo trước khi có file dữ liệu đầu tiên. Repo tạo ở Tuần 6, Ngày 1 (chưa tạo).
 - Tuần 5, Ngày 5: nếu dữ liệu là bản đóng băng thì "cập nhật tự động" được mô phỏng bằng cách nạp từng khối thời gian, mỗi lần chạy thêm một khối; README ghi rõ đây là mô phỏng. Quota `Query usage per day` phải đặt trước khi bật lịch chạy (chờ nâng cấp trả phí, hạn quyết định 06/01/2027).
 - Tuần 5, Ngày 6: README `data-pipeline-project` giữ lẫn tiếng Việt (phần thời tiết) và tiếng Anh (Project 1) đến Tuần 8 (Portfolio). Ba file thử `Ghi_chu.txt`, `test_bq.ipynb`, `viewtable.ipynb` vẫn để trong repo. Quét bí mật bằng `git grep` (dấu nháy đơn trong PowerShell) phải xong **trước** khi push; kiểm file lạ bằng `git ls-files | Select-String`. Dữ liệu Olist gốc ở `D:\BI\projects\ai-logistics\data\olist`; `OLIST_DIR` trong `.env` của repo mới trỏ tới đường dẫn này.
-
+- Tuần 6, Ngày 1: Project 2 dùng lại project GCP `bq-learning-510104` (không tạo project mới vì billing, budget, tín dụng dùng thử đang gắn ở đây), tách bằng dataset riêng. Repo giữ tên `olist-bi-project`. `.gitignore` và kiểm tra `check-ignore -v` phải xong trước khi có file dữ liệu đầu tiên; quét bí mật trước khi push.
+- Tuần 6, Ngày 2 (đề xuất, chốt ở Ngày 3): mô phỏng cập nhật tự động bằng cách chia theo `orders.order_purchase_timestamp` theo tháng (`items`, `payments`, `reviews` đi theo `order_id`); khi nối `products` với `translation` dùng `left join` (623 sản phẩm không có tên tiếng Anh); `geolocation` gom về một dòng một zip trước khi nối; luôn so số dòng trước và sau khi nối.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -459,6 +494,11 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Mart ở Tuần 3 Ngày 4 đọc thẳng bảng public hay đọc từ một bản chụp của mình (ổn định, đối chiếu được)?
 - (thêm câu hỏi khác tại đây)
 - `fct_net_sales` có 45.529 dòng `Complete`, còn bản `lab` là 45.282 (chênh 247). Vẫn chưa chứng minh được là do nguồn public đổi.
+- `max(order_date)` trong `fct_net_sales_inc` tụt từ 2026-10-18 xuống 2026-10-16 sau `MERGE` (đoán là có dòng ghi đè với `order_date` mới), và trong 454 dòng có bao nhiêu dòng thật sự khác? Chưa kiểm chứng.
+- `MERGE` processed nhiều hơn `CREATE TABLE` (13,3 so với 10,5 MiB): có phải vì đọc thêm bảng đích? Staging view có bị quét hết dù có lọc ngày không? Chưa kiểm chứng.
+- Bảng `order_items` có `shipped_at`, `delivered_at`, `returned_at` để làm cột mốc lọc incremental không (staging hiện không chọn các cột đó)? Chưa kiểm tra.
+- Làm sao xóa khỏi bảng incremental các dòng không còn khớp điều kiện ở nguồn (đơn Complete sang Returned)? Chưa thử.
+- Thí nghiệm xóa 2 ngày cuối của `fct_net_sales_inc` rồi `dbt run` để thấy `MERGE` thêm dòng mới: chưa làm.
 - Truy vấn trên view cũng billed 10 MB (một lần đo ngày 09/10). Câu có hai bảng tham chiếu billed 20 MB (đo lại ngày 11/10: processed 0,57 MB, billed 20 MB), ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng"; mới hai lần đo.
 - Mỗi lần Refresh trong Power BI đọc bao nhiêu byte, và qua job thường hay Storage Read API (chưa đo)?
 - Xem lịch sử job bằng Python không dùng SQL (`client.list_jobs`): chưa thử.
@@ -482,11 +522,16 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Vì sao Cell 5c in `Sẽ quét: None MB` và `billed 0.0 MB` trong khi Cell 5 và 5b in 0,01 MB và 20 MB? Chưa hiểu.
 - `EDATE(LastData, -12)` với ngày 29/02 xử lý thế nào, và `DATEADD(LastData, -1, YEAR)` có cho cùng kết quả không? Chưa thử.
 - Lọc slicer bằng measure (`Net Revenue` is not blank) có làm chậm hoặc đổi theo bộ lọc khác không? Chưa kiểm chứng.
-- Tên cột thật của 9 file Olist, và Olist có phải dữ liệu đóng băng không (chia khối thời gian thế nào để mô phỏng cập nhật tự động)? Chưa mở xem.
+- Olist là bản chụp 2016-09-04 đến 2018-10-17 (đã xác nhận), không tự cập nhật. Còn mở: cách chia items, payments, reviews theo khối tháng cho khớp orders khi mô phỏng cập nhật.
 - `D:\BI\Dataset` (5 file nhỏ) là dữ liệu gì, từ đâu? Chưa mở xem; không dùng cho Project 2.
 - Chạy pipeline theo lịch bằng gì: Windows Task Scheduler (đề xuất, hợp với `oauth`, không file khóa), BigQuery scheduled query (chỉ chạy SQL), hay GitHub Actions (chưa rõ cách xác thực không dùng khóa)? Quyết định ở Tuần 6.
 - Giấy phép NC có ảnh hưởng thế nào khi dùng dữ liệu trong portfolio để xin việc (vùng xám, chưa phải luật sư)?
 - Nhiều tin tuyển dụng ghi ETL: họ muốn viết pipeline hay chỉ dùng dữ liệu đã qua ETL? Chưa đọc trọn các JD đó.
+- review_id trùng 814 dòng (cặp review_id + order_id thì duy nhất): vì sao lặp?
+- customer_unique_id có lặp qua nhiều customer_id không?
+- 13 sản phẩm mồ côi thuộc mấy category, và có tên nào cần đoán nghĩa không?
+- geolocation: gom về một dòng một zip bằng cách nào (trung bình, lấy dòng đầu)? Quyết ở staging.
+
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
@@ -501,13 +546,10 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Đầu mỗi ngày mới: nói rõ mục đích của ngày đó.
 - Cuối mỗi ngày: ôn code Python bằng 5-6 dòng quan trọng nhất của ngày. Hỏi từng câu một (mình trả lời bằng lời, rồi mới nhận xét, rồi mới sang câu sau), ghi mục đích của từng câu; trộn lại vài dòng cũ (nhất là dòng trả lời sai) vào ngày sau; không thêm phần dịch SQL sang pandas.
 - Sau mỗi ngày học, soạn sẵn nội dung cập nhật `CONTEXT.md` và `Notes.md` cho mình (không chỉ liệt kê việc cần làm).
-- `max(order_date)` trong `fct_net_sales_inc` tụt từ 2026-10-18 xuống 2026-10-16 sau `MERGE` (đoán là có dòng ghi đè với `order_date` mới), và trong 454 dòng có bao nhiêu dòng thật sự khác? Chưa kiểm chứng.
-- `MERGE` processed nhiều hơn `CREATE TABLE` (13,3 so với 10,5 MiB): có phải vì đọc thêm bảng đích? Staging view có bị quét hết dù có lọc ngày không? Chưa kiểm chứng.
-- Bảng `order_items` có `shipped_at`, `delivered_at`, `returned_at` để làm cột mốc lọc incremental không (staging hiện không chọn các cột đó)? Chưa kiểm tra.
-- Làm sao xóa khỏi bảng incremental các dòng không còn khớp điều kiện ở nguồn (đơn Complete sang Returned)? Chưa thử.
-- Thí nghiệm xóa 2 ngày cuối của `fct_net_sales_inc` rồi `dbt run` để thấy `MERGE` thêm dòng mới: chưa làm.
+
 - Đầu mỗi ngày mới, ngay sau phần mục đích của ngày: đưa bản tổng quan từ đầu đến cuối gồm **cả hai**: (1) bảng, và (2) **sơ đồ luồng dạng hình** (vẽ trong chat, theo hàng dọc, mỗi hàng gồm: chạy ở đâu, bước làm gì, kết quả hiện ra). Bản chữ hoặc ASCII bị vỡ dòng trên màn hình của mình nên không dùng thay cho hình. Mỗi bước theo thứ tự gồm: bước đó làm gì, chạy ở đâu (VS Code, Anaconda Prompt, BigQuery web, Power BI), và kết quả hiện ra là gì (output, file, bảng được tạo). Sau đó mới vào hướng dẫn chi tiết từng bước. Áp dụng từ Tuần 5 Ngày 1.
 - Ôn cuối ngày: **không hỏi lại** những dòng code và khái niệm mình đã trả lời đúng trên khoảng 70% số lần; dành chỗ cho câu mới. Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn.
 Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job và không chờ; `use_query_cache=False` chỉ bỏ qua cache, không xóa gì; `df = job.result().to_dataframe()` chờ xong rồi đưa kết quả vào `df`, byte lấy từ `job` sau `result()`; `maximum_bytes_billed` nhân `1024 * 1024` đổi MB sang byte; `REMOVEFILTERS(bảng)` chỉ gỡ filter của bảng đó; `dry_run=True` chỉ kiểm tra và ước lượng, không cần `job.result()`. Chưa chắc, vẫn hỏi lại: `CALCULATE` ghi đè filter cùng cột còn cột khác giữ nguyên; test dbt kiểm cấu trúc, không đối chiếu giá trị với nguồn và không chạm tầng DAX; `LastData` luôn là ngày cuối của cả bảng, không đổi theo slicer; `def` chỉ định nghĩa hàm, `max_mb=100` là tham số mặc định, thiếu `return` thì `None`.
 
 - “Chưa chắc, vẫn hỏi lại” (cập nhật Tuần 5 Ngày 6): `for` với `df` rỗng chạy 0 lần (không phải 1 lần); `def` chỉ định nghĩa, biến trong hàm mất khi hàm kết thúc, `return` đưa ra ngoài, thiếu `return` thì `None`; chữ `r` ngoài `"""` là Python, chữ `r` trong `'...'` là BigQuery; `relationships` tìm khóa mồ côi của fact (không phải NULL); `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua (đúng hôm nay, hỏi thêm một lần). Đã nắm: ETL biến đổi trước khi nạp, ELT nạp rồi biến đổi trong warehouse.
+-“Chưa chắc, vẫn hỏi lại”: thêm cuối đoạn: “isin trả dãy True/False dài bằng bảng con; NULL khác mồ côi (610 NULL trong products, 13 mồ côi); nối sang bảng nhiều dòng cho một khóa thì nhân dòng; khi missing_cols rỗng code vẫn chạy tiếp Bước 3.”
