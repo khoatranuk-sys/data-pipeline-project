@@ -1079,3 +1079,26 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Kiểu cột ở `olist_raw`: khai báo đủ kiểu hay nạp toàn bộ STRING rồi ép kiểu trong dbt staging (bạn chưa chốt).
 
 **Cần ôn lại đầu ngày sau:** (1) nối sang bảng nhiều dòng cho một khóa thì dòng bị nhân lên, kiểm số dòng trước và sau khi nối; (2) NULL (không có khóa) khác mồ côi (có khóa nhưng bảng cha không có), `left join` để không mất dòng; (3) `isin` trả dãy True/False dài bằng bảng con; (4) code chạy tiếp Bước 3 khi `missing_cols` rỗng; (5) tên cột chia thời gian là `order_purchase_timestamp`, dữ liệu là bản chụp 2016 đến 2018 nên cập nhật tự động chỉ là mô phỏng.
+
+## Tuần 6 - Ngày 3: nạp translation vào olist_raw
+
+**Ý chính (4 ý cần nhớ)**
+- Raw toàn STRING, ép kiểu ở dbt staging bằng `SAFE_CAST` (ELT). Lý do: giữ số 0 đầu của mã zip, ngày hỏng không làm cả load job thất bại, raw giữ nguyên dữ liệu gốc. Đánh đổi: staging phải ép kiểu từng cột và đếm NULL sau khi ép.
+- Load job đọc file trên máy rồi ghi vào bảng, không gửi SQL nên không tính byte truy vấn. `LoadJobConfig` chỉ là cấu hình; việc nạp xảy ra khi đưa nó vào `client.load_table_from_file`.
+- `skip_leading_rows=1` bỏ dòng tiêu đề; `WRITE_TRUNCATE` cho chạy lại vẫn 71 dòng (idempotent); `WRITE_APPEND` chạy hai lần ra 142 dòng. Thiếu `skip_leading_rows` với cột STRING thì tiêu đề lẫn vào dữ liệu mà không báo lỗi (72 dòng).
+- Đối chiếu số dòng bằng nguồn độc lập: số đếm từ file CSV so với `t.num_rows` hoặc `COUNT(*)`. `job.output_rows` cũng là số phía BigQuery báo lại.
+
+**Đã làm** (`Notebook/Week03/Day3.ipynb`)
+- Cell 1: `client`, `mb`, `stats`; 9 file CSV, location US. Cell 2: dataset `olist_raw` (US). Cell 3: hàm `load_csv_as_string(csv_path, table_name)`, nạp 71 dòng, 2 cột. Cell 4: `num_rows` 71, `COUNT(*)` 71, 71 category khác nhau, hai cột STRING; billed 10 MB (processed 0,0 MB).
+
+**Chỗ dễ nhầm**
+- `with open(csv_path, "rb") as f:` mở file đọc byte thô và tự đóng khi khối thụt vào xong; `job.result()` đứng ngoài khối chỉ chờ job xong.
+- `table_name` là tham số của hàm, nhận giá trị ở dòng gọi hàm.
+- `len(df)` bằng 1 vì `df` là kết quả của `SELECT COUNT(*)`; số dòng của bảng là ô `so_dong`.
+- NULL (ô category trống, 610) khác mồ côi (có tên nhưng `translation` không có, 13): `join` thường làm cả 623 sản phẩm mất âm thầm, `left join` giữ lại.
+
+**Điều mình chưa chắc**
+- `reviews` (chữ xuống dòng trong ô) và `geolocation` (mã zip, 1 triệu dòng) nạp có ổn không.
+- Đóng file trước khi `job.result()` có ảnh hưởng gì không (mình tin là không, chưa kiểm tài liệu).
+
+**Cần ôn lại đầu ngày sau:** (1) `job.result()` chờ, không gán; (2) NULL khác mồ côi; (3) lý do raw toàn STRING và việc `SAFE_CAST` ở staging; (4) `WRITE_APPEND` hai lần ra 142; (5) `len(df)` khác số dòng bảng, nguồn độc lập là file CSV.

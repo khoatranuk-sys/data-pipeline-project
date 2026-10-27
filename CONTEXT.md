@@ -57,6 +57,7 @@
 - Dữ liệu Olist (ngoài repo, **không commit**, không chép vào `data/`): `D:\BI\projects\ai-logistics\data\olist`, 9 file CSV (`olist_customers_dataset`, `olist_geolocation_dataset`, `olist_order_items_dataset`, `olist_order_payments_dataset`, `olist_order_reviews_dataset`, `olist_orders_dataset`, `olist_products_dataset`, `olist_sellers_dataset`, `product_category_name_translation`). Chưa mở xem tên cột. CSV đang liên kết với Excel: mở bằng VS Code, không lưu lại bằng Excel. Thư mục `D:\BI\Dataset` (5 file nhỏ và `Template.png`) **không phải Olist**, nội dung chưa biết, không dùng cho Project 2. Giấy phép CC BY-NC-SA 4.0 xác nhận ngày 23/10/2026 trên trang Kaggle của Olist.
 - Thư mục `Doc/` (từ Tuần 5 Ngày 6): `Dashboard.png`, `PowerBI_Model.png`, `dbt_lineage.png`, `star_schema.png`, `Definition_of_done.md` (6 mục Project 1, đã tích đủ). Tên file phải khớp từng chữ với README (GitHub phân biệt hoa thường).
 - Repo Project 2 (từ Tuần 6 Ngày 1): `olist-bi-project` (Public, tài khoản `khoatranuk-sys`), thư mục trên máy `D:\BI\projects\olist-bi-project`. `.gitignore` (mẫu Python của GitHub + khối luật riêng ở cuối: `.env`, `data/`, `olist/`, `*.csv`, `*.parquet`, `*.pbix`, `logs/`, `target/`, `dbt_packages/`). `.env` (không commit) và `.env.example` (có commit) có 3 biến: `OLIST_DIR`, `GCP_PROJECT`, `BQ_LOCATION`. Notebook: `Notebook/Week01/Day1.ipynb` (thư mục tên viết hoa, số ít). Dùng lại project GCP `bq-learning-510104`, không tạo project mới; Project 2 tách bằng dataset riêng.
+- Project 2 (từ Tuần 6 Ngày 3): dataset `bq-learning-510104.olist_raw` (US), mọi cột nạp dạng STRING, ép kiểu ở dbt staging. Notebook `Notebook/Week03/Day3.ipynb` (sửa lại nếu bạn đặt tên khác). Hàm dùng lại: `load_csv_as_string(csv_path, table_name)` (đọc tiêu đề bằng `pd.read_csv(nrows=0)`, khai báo schema toàn STRING, `LoadJobConfig` với `skip_leading_rows=1`, `WRITE_TRUNCATE`, `allow_quoted_newlines=True`, `load_table_from_file` trong khối `with open(..., "rb")`).
 
 ## 5. Chi phí và an toàn
 
@@ -87,6 +88,7 @@
   - **Commit**: 3 commit trên GitHub (1 của GitHub, 2 của mình): `Add project skeleton: README, .gitignore rules, .env.example` và `Add Day 1 notebook: list Olist files and columns`. Không có `.env` trên GitHub.
   - **Chi phí**: không đụng BigQuery nên không tốn byte.
   - **Checklist Excel**: tick việc tạo repo Project 2 của Tuần 6 (kiểm tra lại tên dòng và số tổng hiển thị).
+  - Tuần 6 Ngày 3: tạo dataset và load job không tốn byte truy vấn. Chỉ Cell 4 (SQL đếm dòng một bảng) billed 10 MB (processed làm tròn 0,0 MB).
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -335,11 +337,17 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng: `errors="coerce"`, ví dụ nhân dòng khi nối (khách A 300 thay vì 100). Cần ôn: `isin` trả dãy True/False dài bằng bảng con; 610 là NULL trong `products`, 13 là mồ côi; code vẫn chạy tiếp Bước 3 khi `missing_cols` rỗng; cột chia thời gian là `order_purchase_timestamp`.
   - **Checklist Excel**: tick việc khám phá dữ liệu Olist của Tuần 6 nếu có (mình chưa đọc được file nên bạn tự đối chiếu tên dòng và số tổng hiển thị).
 
+  - **Tuần 6, Ngày 3**: nạp bảng đầu tiên vào `olist_raw`. Notebook `Notebook/Week03/Day3.ipynb`.
+  - **Quyết định**: raw toàn STRING, ép kiểu bằng `SAFE_CAST` ở dbt staging (ELT). Lý do: giữ số 0 đầu của mã zip (BigQuery tự đoán kiểu có thể đổi cột toàn chữ số thành số), ngày hỏng không làm cả load job thất bại, raw giữ nguyên dữ liệu gốc.
+  - **Đã làm**: Cell 1 đọc `.env`, tạo `client` (9 file CSV, location US); Cell 2 tạo `olist_raw` (US); Cell 3 nạp `product_category_name_translation.csv` thành bảng `olist_raw.product_category_translation`: 71 dòng, 2 cột; Cell 4 đối chiếu: `num_rows` 71, `COUNT(*)` 71, `COUNT(DISTINCT product_category_name)` 71, hai cột STRING, billed 10 MB.
+  - **Ôn cuối ngày**: 6 câu (3 Python, 3 nội dung). Đúng: file được đóng sau khối `with`; `nrows=0` rồi `.tolist()`; `cfg` chỉ là cấu hình; thiếu `skip_leading_rows` thì tiêu đề lẫn vào dữ liệu (72 dòng); join thường làm mất 623 sản phẩm không có tên tiếng Anh. Cần ôn: `job.result()` chỉ chờ, không gán gì vào `job`; NULL (ô category trống) khác mồ côi (có tên nhưng `translation` không có); lý do ELT còn có "giữ số 0 đầu" và staging dùng `SAFE_CAST` rồi đếm NULL; `WRITE_APPEND` chạy 2 lần ra 142 dòng (không phải 141); `len(df)` là số dòng kết quả SQL (1), số dòng bảng là `t.num_rows` hoặc ô `so_dong`; nguồn độc lập để đối chiếu số dòng là chính file CSV.
+
 ## 8. Đang làm
 
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 - **Tuần 6, Ngày 1 và Ngày 2**: xong (repo `olist-bi-project`; khám phá 9 file Olist).
-- **Tuần 6, Ngày 3** (tiếp theo, đề xuất): chốt cách nạp vào dataset `olist_raw` (US) bằng load job, rồi nạp thử một bảng nhỏ (`translation`, 71 dòng). Cần chốt trước: kiểu cột ở raw (khai báo đủ kiểu hay toàn bộ STRING rồi ép kiểu trong dbt staging), và cách xử lý `reviews` (chữ xuống dòng trong ô), mã zip (giữ số 0 đầu).
+- **Tuần 6, Ngày 3**: xong (`olist_raw`, bảng `product_category_translation` 71 dòng).
+- **Tuần 6, Ngày 4** (tiếp theo, đề xuất): nạp 8 bảng còn lại bằng vòng lặp gọi `load_csv_as_string`, đối chiếu số dòng từng bảng với Ngày 2 (99.441, 112.650, 103.886, 99.224, 32.951, 3.095, 1.000.163...), kiểm `reviews` (chữ xuống dòng trong ô) và `geolocation` (mã zip còn số 0 đầu). Cần chốt trước: tên bảng raw của 8 bảng còn lại..
 
 
 ## 9. Lỗi đã gặp và cách sửa
@@ -428,6 +436,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Thẻ `Data Through` đổi khi bấm biểu đồ đường**: `MAX(order_date)` tính trên tập dòng đã bị thu hẹp. Sửa bằng `CALCULATE(..., REMOVEFILTERS(dim_date), REMOVEFILTERS(dim_products))` và tắt tương tác lên thẻ (Format, Edit interactions).
 - **Biểu đồ Top N dễ bị đọc là toàn bộ**: 10 category chỉ khoảng 68,3% tổng; danh sách đổi khi chọn department. Ghi "Top 10" ở tiêu đề.
 - **Vòng `for` không chạy khi `df` rỗng, và đó không phải null**: `len(df)` bằng 0 là tập rỗng (không có dòng nào khớp), khác một ô có giá trị null. Cell vẫn xanh vì SQL đúng và lặp qua danh sách rỗng là hợp lệ. Cell 5b và 5c rỗng nghĩa là Power BI không thấy trong `JOBS`, không phải lỗi code.
+- **Nạp CSV toàn STRING bỏ `skip_leading_rows=1`**: load job không báo lỗi, dòng tiêu đề thành một dòng dữ liệu (72 thay vì 71). Chạy lại bằng `WRITE_APPEND` thì trùng dòng, cũng không báo lỗi. Luôn so số dòng bảng với số dòng đếm từ file CSV.
 
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
@@ -481,6 +490,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 5, Ngày 6: README `data-pipeline-project` giữ lẫn tiếng Việt (phần thời tiết) và tiếng Anh (Project 1) đến Tuần 8 (Portfolio). Ba file thử `Ghi_chu.txt`, `test_bq.ipynb`, `viewtable.ipynb` vẫn để trong repo. Quét bí mật bằng `git grep` (dấu nháy đơn trong PowerShell) phải xong **trước** khi push; kiểm file lạ bằng `git ls-files | Select-String`. Dữ liệu Olist gốc ở `D:\BI\projects\ai-logistics\data\olist`; `OLIST_DIR` trong `.env` của repo mới trỏ tới đường dẫn này.
 - Tuần 6, Ngày 1: Project 2 dùng lại project GCP `bq-learning-510104` (không tạo project mới vì billing, budget, tín dụng dùng thử đang gắn ở đây), tách bằng dataset riêng. Repo giữ tên `olist-bi-project`. `.gitignore` và kiểm tra `check-ignore -v` phải xong trước khi có file dữ liệu đầu tiên; quét bí mật trước khi push.
 - Tuần 6, Ngày 2 (đề xuất, chốt ở Ngày 3): mô phỏng cập nhật tự động bằng cách chia theo `orders.order_purchase_timestamp` theo tháng (`items`, `payments`, `reviews` đi theo `order_id`); khi nối `products` với `translation` dùng `left join` (623 sản phẩm không có tên tiếng Anh); `geolocation` gom về một dòng một zip trước khi nối; luôn so số dòng trước và sau khi nối.
+- Tuần 6, Ngày 3: `olist_raw` nạp bằng load job, mọi cột STRING (khai báo schema rõ từ dòng tiêu đề), `skip_leading_rows=1`, `WRITE_TRUNCATE` (chạy lại không trùng), `allow_quoted_newlines=True`. Ép kiểu ở dbt staging bằng `SAFE_CAST`, mã zip giữ STRING. Mỗi bảng nạp xong phải so số dòng đích (`num_rows` hoặc `COUNT(*)`) với số dòng đếm từ file CSV. Sửa dòng cũ "Repo tạo ở Tuần 6, Ngày 1 (chưa tạo)" thành "đã tạo".
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -531,6 +541,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - customer_unique_id có lặp qua nhiều customer_id không?
 - 13 sản phẩm mồ côi thuộc mấy category, và có tên nào cần đoán nghĩa không?
 - geolocation: gom về một dòng một zip bằng cách nào (trung bình, lấy dòng đầu)? Quyết ở staging.
+- Tên bảng raw của 8 bảng còn lại: bỏ `olist_` và `_dataset` như `product_category_translation` (đổi tên so với file), hay giữ nguyên tên file? Chưa chốt.
+- `allow_quoted_newlines=True` đã có trong hàm nhưng chưa thử với `reviews` thật; `geolocation` (khoảng 58 MB, 1 triệu dòng) nạp bằng `load_table_from_file` có ổn không? Chưa thử.
 
 
 ## 12. Cách mình muốn được trả lời
@@ -553,3 +565,4 @@ Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job
 
 - “Chưa chắc, vẫn hỏi lại” (cập nhật Tuần 5 Ngày 6): `for` với `df` rỗng chạy 0 lần (không phải 1 lần); `def` chỉ định nghĩa, biến trong hàm mất khi hàm kết thúc, `return` đưa ra ngoài, thiếu `return` thì `None`; chữ `r` ngoài `"""` là Python, chữ `r` trong `'...'` là BigQuery; `relationships` tìm khóa mồ côi của fact (không phải NULL); `CALCULATE` ghi đè filter cùng cột, filter cột khác vẫn đi qua (đúng hôm nay, hỏi thêm một lần). Đã nắm: ETL biến đổi trước khi nạp, ELT nạp rồi biến đổi trong warehouse.
 -“Chưa chắc, vẫn hỏi lại”: thêm cuối đoạn: “isin trả dãy True/False dài bằng bảng con; NULL khác mồ côi (610 NULL trong products, 13 mồ côi); nối sang bảng nhiều dòng cho một khóa thì nhân dòng; khi missing_cols rỗng code vẫn chạy tiếp Bước 3.”
+- “Chưa chắc, vẫn hỏi lại” (Tuần 6 Ngày 3): `job.result()` chờ rồi mới đọc `output_rows`, không gán vào `job`; NULL khác mồ côi; `len(df)` khác số dòng của bảng; `WRITE_APPEND` chạy hai lần ra gấp đôi.
