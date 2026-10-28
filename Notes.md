@@ -1102,3 +1102,48 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Đóng file trước khi `job.result()` có ảnh hưởng gì không (mình tin là không, chưa kiểm tài liệu).
 
 **Cần ôn lại đầu ngày sau:** (1) `job.result()` chờ, không gán; (2) NULL khác mồ côi; (3) lý do raw toàn STRING và việc `SAFE_CAST` ở staging; (4) `WRITE_APPEND` hai lần ra 142; (5) `len(df)` khác số dòng bảng, nguồn độc lập là file CSV.
+
+## Tuần 6 - Ngày 4: nạp 8 bảng Olist còn lại vào olist_raw
+
+**Ý chính (4 ý cần nhớ)**
+- Mọi bảng raw đều nạp toàn STRING để BigQuery không tự đổi dữ liệu (ví dụ mất số 0 đầu của zip) và load job không thất bại vì kiểu; ép kiểu dời sang staging bằng `SAFE_CAST`. Cell 5b cho thấy zip ở cả ba bảng đều dài 5 ký tự, nên raw giữ nguyên.
+- Đối chiếu số dòng cần nguồn đứng ngoài BigQuery: `n_job` (`job.output_rows`) và `n_tbl` (`num_rows`) đều do BigQuery báo, cùng sai thì vẫn bằng nhau; `n_csv` đếm từ file CSV là nguồn ngoài. `n_csv` và số của Ngày 2 đều đếm bằng pandas nên cùng sai nếu pandas đọc sai.
+- Khối `try/except` trong vòng `for` giúp một bảng lỗi không dừng cả vòng, nhưng cell vẫn xanh nên phải đọc output tìm chữ `LỖI` và dòng `Bảng có vấn đề`; bảng lỗi để lại bản cũ trên BigQuery mà không có dấu hiệu.
+- Khi nối `products` với `translation`: NULL (610 ô trống) khác mồ côi (13 dòng có tên nhưng `translation` không có). `join` thường làm mất 623 sản phẩm mà không có lỗi đỏ; `left join` giữ lại với tên tiếng Anh NULL, cần xử lý ở staging.
+
+**Đã làm** (`Notebook/Week04/Day4.ipynb`)
+
+| Bảng raw | Số dòng | Số cột |
+|---|---|---|
+| `customers` | 99.441 | 5 |
+| `geolocation` | 1.000.163 | 5 |
+| `order_items` | 112.650 | 7 |
+| `order_payments` | 103.886 | 5 |
+| `order_reviews` | 99.224 | 7 |
+| `orders` | 99.441 | 8 |
+| `products` | 32.951 | 9 |
+| `sellers` | 3.095 | 4 |
+
+- Cell 3 chạy hai lần: lần hai số dòng không đổi (`WRITE_TRUNCATE`, idempotent). Lần chạy thứ hai mất 1 phút 42 giây (`geolocation` lâu nhất).
+- Cell 4: cột thứ 8 của `orders` là `order_estimated_delivery_date`, cột thứ 9 của `products` là `product_width_cm`; `products` có hai cột sai chính tả từ nguồn (`product_name_lenght`, `product_description_lenght`).
+- Cell 5: `order_reviews` có 3.852 ô comment chứa chữ xuống dòng, nạp nguyên vẹn (dòng không bị tách); 58.247 ô `review_comment_message` là NULL (khoảng 58,7%), 0 chuỗi rỗng.
+- Cell 5b: `customers`, `sellers`, `geolocation` chỉ có zip dài 5. Billed 30 MB cho ba bảng, 10 MB cho một bảng.
+
+**Chỗ dễ nhầm**
+- `schemaField` (chữ `s` thường) thay vì `SchemaField`: lỗi nổ trước khi load job gửi đi, cả 8 bảng in `LỖI`, cell vẫn xanh.
+- `len(df)` ở Cell 5 là 1 (kết quả `COUNT(*)` là một dòng); số 99.224 là giá trị trong ô `so_dong`.
+- Dòng tiêu đề được bỏ bằng `skip_leading_rows=1`, nên bảng có 99.224 dòng dữ liệu, không phải 99.225.
+- `n_tbl` là `num_rows` của bảng BigQuery, không phải của pandas; pandas chỉ đếm `n_csv`.
+
+**Ôn cuối ngày** (3 câu Python, 3 câu nội dung)
+- `job.result()` chờ job xong; bỏ nó thì `output_rows` thường là `None` (chưa thử), không phải lỗi đỏ, rồi dòng `print` có `{n_job:>9,}` nổ lỗi, `except` in `LỖI`.
+- Raw toàn STRING: ví dụ mất số 0 đầu của zip; nếu cả ba cột cùng mất số 0 thì vẫn nối được nhưng dữ liệu đã đổi âm thầm; thiếu lý do load job không thất bại vì kiểu, và `SAFE_CAST` ở staging.
+- `try/except` trong Cell 3: bảng lỗi in `LỖI`, vào `problems`, vòng `for` đi tiếp, cell không đỏ, bảng cũ còn lại; `print(len(TABLES))` là số bảng dự định, bắt dictionary rỗng.
+
+**Điều mình chưa chắc**
+- Ô trống ở các cột khác thành NULL hay chuỗi rỗng (mới kiểm `review_comment_message`).
+- Có zip nào bắt đầu bằng `'0'` không (mới suy ra từ độ dài).
+- Bỏ `job.result()` thì `output_rows` có thật sự là `None` không.
+- `review_id` trùng 814 dòng ở `order_reviews`: vì sao lặp (chưa xem).
+
+**Cần ôn lại đầu ngày sau:** (1) `job.result()` chờ job xong, đọc kết quả quá sớm thường ra `None`; (2) `len(df)` là số dòng kết quả SQL, số dòng của bảng là giá trị trong ô `so_dong`; (3) `n_job` và `n_tbl` cùng phía BigQuery, cần nguồn ngoài như `n_csv`; (4) `except` nuốt lỗi, bảng cũ còn lại, đọc `problems`; (5) `join` thường làm mất 623 sản phẩm, `left join` giữ lại nhưng tên NULL.
