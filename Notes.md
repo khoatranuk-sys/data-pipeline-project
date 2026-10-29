@@ -1147,3 +1147,44 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - `review_id` trùng 814 dòng ở `order_reviews`: vì sao lặp (chưa xem).
 
 **Cần ôn lại đầu ngày sau:** (1) `job.result()` chờ job xong, đọc kết quả quá sớm thường ra `None`; (2) `len(df)` là số dòng kết quả SQL, số dòng của bảng là giá trị trong ô `so_dong`; (3) `n_job` và `n_tbl` cùng phía BigQuery, cần nguồn ngoài như `n_csv`; (4) `except` nuốt lỗi, bảng cũ còn lại, đọc `problems`; (5) `join` thường làm mất 623 sản phẩm, `left join` giữ lại nhưng tên NULL.
+
+## Tuần 6 - Ngày 5: dbt cho Project 2 và staging orders
+
+**Ý chính (4 ý cần nhớ)**
+- Project dbt của Project 2 là `olist_dbt/` trong repo `olist-bi-project`, ghi vào dataset `olist_dbt_dev` (US), tách khỏi `dbt_dev` của Project 1. Mọi query dbt có `maximum_bytes_billed: 1000000000` trong `profiles.yml` (nằm ngoài repo, không commit).
+- Staging chỉ đổi tên cột và ép kiểu bằng `SAFE_CAST` (ELT, raw toàn STRING). `SAFE_CAST` không báo lỗi mà đổi ô hỏng thành NULL, nên mỗi lần ép kiểu một cột mới phải so số NULL trước và sau ép trên bảng raw. Hai số bằng nhau thì ép kiểu không làm hỏng ô nào; `cast_null` lớn hơn `raw_null` thì phần chênh là ô có giá trị nhưng không ép được.
+- `dbt test` PASS=2 (`unique`, `not_null` trên `order_id`) chỉ chứng minh khóa không trùng và không NULL. Test không bắt được ô ngày bị ép thành NULL, giá trị `order_status` lạ, `customer_id` mồ côi, hay số dòng lệch so với file CSV.
+- `.gitignore`: luật không có dấu `/` ở đầu (`olist/`) khớp thư mục cùng tên ở mọi cấp, nên chặn nhầm `olist_dbt/models/staging/olist/`. `/olist/` chỉ chặn thư mục `olist` ở gốc repo. `git check-ignore -v <đường dẫn>` in ra dòng luật đang chặn file; không in gì là file không bị chặn.
+
+**Đã làm**
+- `dbt init olist_dbt` (adapter `bigquery`, `oauth`, project `bq-learning-510104`, dataset `olist_dbt_dev`, location US, threads 4); thêm `maximum_bytes_billed` vào `profiles.yml`; xóa `models/example/`; `dbt_project.yml` đặt `staging` là `view`, `marts` là `table`.
+- `models/staging/olist/`: `_olist__sources.yml` (source `olist`, 9 bảng của `olist_raw`), `stg_olist__orders.sql` (view, `SAFE_CAST` 5 cột ngày sang TIMESTAMP, đổi tên thành `purchased_at`, `approved_at`, `delivered_to_carrier_at`, `delivered_to_customer_at`, `estimated_delivery_at`), `_olist__models.yml` (mô tả và 2 test trên `order_id`).
+- `dbt test --select stg_olist__orders`: `Found 1 model, 2 data tests, 9 sources, 561 macros`, `PASS=2 TOTAL=2` (8,25 giây).
+
+**Đối chiếu (notebook `Notebook/Week01/Day05.ipynb`)**
+
+| Kiểm tra | Kết quả |
+|---|---|
+| NULL trước và sau `SAFE_CAST` (purchased, approved, carrier, customer, estimated) | 0/0, 160/160, 1.783/1.783, 2.965/2.965, 0/0 |
+| View staging | 99.441 dòng = 99.441 `order_id` duy nhất, ngày 2016-09-04 đến 2018-10-17, `purchased_at` NULL 0 |
+| `order_status` (8 giá trị) | delivered 96.478, shipped 1.107, canceled 625, unavailable 609, invoiced 314, processing 301, created 5, approved 2 (tổng 99.441) |
+
+- Chi phí: Cell 2 processed 9,86 MB, Cell 3 processed 5,22 MB, Cell 4 processed 1,04 MB; cả ba billed 10 MB. `dbt run` view là 0 processed.
+
+**Chỗ dễ nhầm**
+- Dòng vàng `Configuration paths exist ... models.olist_dbt.marts`: không phải lỗi, do khai báo `marts` trong `dbt_project.yml` khi chưa có thư mục `models/marts/`.
+- Anaconda Prompt là `cmd`: lệnh `git grep` phải dùng dấu nháy kép (nháy đơn chỉ đúng trong PowerShell), nếu không `|` bị hiểu là pipe và lệnh báo lỗi.
+- `git grep --cached` chỉ quét file đã `git add`; quét trước khi add thì không in gì và không có giá trị. Sau khi đã push thì dùng `git grep ... HEAD`.
+- Lần này push trước khi quét xong; từ nay thứ tự là add, quét, commit, push.
+
+**Ôn cuối ngày** (4 câu: 2 Python, 2 nội dung)
+- `len(df)` ở Cell 4 là 8: số dòng của kết quả `GROUP BY`, tức số trạng thái; không phải số dòng bảng `orders` (99.441). Thứ tự dòng do `ORDER BY` quyết định, không phải do con số 8.
+- Cell 2: hai số NULL bằng nhau nghĩa là `SAFE_CAST` không làm hỏng ô nào; nếu `cast_null` lớn hơn thì phần chênh là ô có giá trị nhưng không ép được. Đúng.
+- `check` là dry run (chỉ ước lượng, không chạy thật, không tốn tiền); `stats` chạy thật với trần `maximum_bytes_billed`. `processed` 9,86 MB nhưng `billed` 10,0 MB vì mức tối thiểu 10 MB. Đúng.
+- `dbt test` PASS=2 chỉ chứng minh `order_id` không trùng và không NULL; không bắt được ô ngày bị ép thành NULL, giá trị lạ hay khóa mồ côi. Ý chính đúng; ví dụ cần gắn với cột đã được test.
+
+**Điều mình chưa chắc**
+- Các NULL ở `delivered_to_carrier_at` (1.783) và `delivered_to_customer_at` (2.965) có khớp với các trạng thái chưa giao hay không (chưa kiểm bằng SQL).
+- Chi phí thật của `dbt test` (chưa đo bằng `INFORMATION_SCHEMA.JOBS`).
+
+**Cần ôn lại đầu ngày sau:** (1) `len(df)` là số dòng kết quả SQL, không phải số dòng bảng; (2) `SAFE_CAST` đổi ô hỏng thành NULL, nên so NULL trước và sau; (3) test `unique` và `not_null` chỉ kiểm cột được khai báo, không đối chiếu nguồn; (4) `.gitignore` không có dấu `/` đầu thì khớp ở mọi cấp; (5) thứ tự add, quét bí mật, commit, push.

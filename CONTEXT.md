@@ -60,6 +60,8 @@
 - Project 2 (từ Tuần 6 Ngày 3): dataset `bq-learning-510104.olist_raw` (US), mọi cột nạp dạng STRING, ép kiểu ở dbt staging. Notebook `Notebook/Week03/Day3.ipynb` (sửa lại nếu bạn đặt tên khác). Hàm dùng lại: `load_csv_as_string(csv_path, table_name)` (đọc tiêu đề bằng `pd.read_csv(nrows=0)`, khai báo schema toàn STRING, `LoadJobConfig` với `skip_leading_rows=1`, `WRITE_TRUNCATE`, `allow_quoted_newlines=True`, `load_table_from_file` trong khối `with open(..., "rb")`).
 - Project 2 (từ Tuần 6 Ngày 4): dataset `olist_raw` có 9 bảng, tất cả cột STRING: `customers`, `geolocation`, `order_items`, `order_payments`, `order_reviews`, `orders`, `products`, `sellers` (bỏ `olist_` và `_dataset` khỏi tên file) và `product_category_translation` (Ngày 3). Notebook `Notebook/Week04/Day4.ipynb` (sửa lại nếu bạn đặt tên khác). Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 hàm `load_csv_as_string` (tiêu đề đọc bằng `encoding="utf-8-sig"`); Cell 3 vòng lặp nạp 8 bảng và so 4 số dòng (file CSV, `job.output_rows`, `num_rows`, số Ngày 2); Cell 4 kiểm cột và kiểu; Cell 5 và 5b kiểm `order_reviews` và mã zip.
 
+- Project 2 (từ Tuần 6 Ngày 5): dbt nằm trong `olist_dbt/` (repo `olist-bi-project`, có commit), profile `olist_dbt` trong `%USERPROFILE%\.dbt\profiles.yml` (`method: oauth`, `project: bq-learning-510104`, `dataset: olist_dbt_dev`, `location: US`, `threads: 4`, `maximum_bytes_billed: 1000000000`; khối `bi_dbt` của Project 1 giữ nguyên). `dbt_project.yml`: `staging` là `view`, `marts` là `table`. Cấu trúc: `olist_dbt/models/staging/olist/` chứa `_olist__sources.yml` (source `olist` trỏ `olist_raw`, 9 bảng), `stg_olist__orders.sql` (view, `SAFE_CAST` 5 cột ngày) và `_olist__models.yml` (mô tả và 2 test `unique`, `not_null` trên `order_id`). Lệnh dùng (Anaconda Prompt, env `bi`, đang ở `olist_dbt`): `dbt compile --select stg_olist__orders`, `dbt run --select stg_olist__orders`, `dbt test --select stg_olist__orders`. Notebook: `Notebook/Week01/Day05.ipynb` (tên thật mình đặt; Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 so NULL trước và sau `SAFE_CAST`; Cell 3 kiểm view; Cell 4 đếm `order_status`). Luật `.gitignore` `olist/` đã đổi thành `/olist/` vì chặn nhầm `olist_dbt/models/staging/olist/`.
+
 ## 5. Chi phí và an toàn
 
 - Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
@@ -91,6 +93,8 @@
   - **Checklist Excel**: tick việc tạo repo Project 2 của Tuần 6 (kiểm tra lại tên dòng và số tổng hiển thị).
   - Tuần 6 Ngày 3: tạo dataset và load job không tốn byte truy vấn. Chỉ Cell 4 (SQL đếm dòng một bảng) billed 10 MB (processed làm tròn 0,0 MB).
   - Tuần 6 Ngày 4: 8 load job không tốn byte truy vấn. Cell 5 (một bảng) processed 2,81 MB, billed 10 MB; Cell 5b (ba bảng) processed 7,36 MB, billed 30 MB: thêm một lần đo ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng" (chưa có tài liệu xác nhận). Tổng khoảng 40 MB billed.
+
+  - Tuần 6 Ngày 5: `dbt run` view không quét byte; Cell 2, 3, 4 mỗi cell đọc một bảng, processed 9,86 / 5,22 / 1,04 MB, billed 10 MB mỗi cell (tổng khoảng 30 MB); `dbt test` 2 test chạy 8,25 giây, chi phí chưa đo.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -355,14 +359,23 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Chi phí**: xem mục 5.
   - **Checklist Excel**: mình chưa đọc được file nên bạn tự đối chiếu: tick việc nạp dữ liệu Olist vào BigQuery của Tuần 6 nếu có (kiểm tra lại tên dòng và số tổng hiển thị).
 
+    - **Tuần 6, Ngày 5**: dbt cho Project 2, staging `orders`. Notebook `Notebook/Week01/Day05.ipynb`.
+  - **Quyết định**: thư mục dbt `olist_dbt/`, dataset `olist_dbt_dev` (US), tách khỏi `dbt_dev`. Cột ngày của staging đổi tên dạng `..._at` (`purchased_at`, `approved_at`, `delivered_to_carrier_at`, `delivered_to_customer_at`, `estimated_delivery_at`).
+  - **Đã làm**: `dbt init`, cầu chì 1 GB trong `profiles.yml`, xóa `models/example/`, khai báo source `olist` (9 bảng), viết `stg_olist__orders` (view), thêm 2 test. `dbt test` `PASS=2 TOTAL=2`, `Found 1 model, 2 data tests, 9 sources`.
+  - **Đối chiếu**: NULL trước và sau `SAFE_CAST` bằng nhau ở cả 5 cột (0, 160, 1.783, 2.965, 0); view 99.441 dòng = 99.441 `order_id` duy nhất, ngày 2016-09-04 đến 2018-10-17, `purchased_at` NULL 0; `order_status` 8 giá trị (delivered 96.478, shipped 1.107, canceled 625, unavailable 609, invoiced 314, processing 301, created 5, approved 2).
+  - **Git**: commit `b10e6c1` (13 file, gồm sửa `.gitignore`) đã push; `git grep ... HEAD` không in dòng nào, `working tree clean`. Lần này push trước khi quét bí mật xong.
+  - **Lỗi gặp**: luật `olist/` trong `.gitignore` (dòng 226) chặn `olist_dbt/models/staging/olist/` nên ba file chính không hiện trong `git status` (xem mục 9).
+  - **Ôn cuối ngày**: 4 câu (2 Python, 2 nội dung), đều đúng ý chính. Cần ôn: `len(df)` là số dòng kết quả SQL; ví dụ cho "test không bắt được" phải gắn với cột đã được test.
+  - **Checklist Excel**: mình chưa đọc được file nên bạn tự tick việc dbt cho Project 2 (nếu có) và đối chiếu số hiển thị.
+
 ## 8. Đang làm
 
 - **Tuần 3** còn 1 việc: quota (chờ nâng cấp trả phí, quyết định trước 15/12/2026).
 - **Tuần 6, Ngày 1 và Ngày 2**: xong (repo `olist-bi-project`; khám phá 9 file Olist).
 - **Tuần 6, Ngày 3**: xong (`olist_raw`, bảng `product_category_translation` 71 dòng).
 - **Tuần 6, Ngày 4**: xong (8 bảng trong `olist_raw`, số dòng khớp).
-- **Tuần 6, Ngày 5** (tiếp theo, đề xuất): bắt đầu dbt cho Project 2 (khởi tạo thư mục dbt trong repo `olist-bi-project`, khai báo source `olist_raw`, dataset dbt riêng tách khỏi `dbt_dev`), viết staging đầu tiên bằng `SAFE_CAST` (ví dụ `orders` hoặc `order_reviews`). Cần chốt trước: tên dataset dbt của Project 2, tên thư mục dbt.
-
+- **Tuần 6, Ngày 5**: xong (`olist_dbt/`, `stg_olist__orders`, `PASS=2`).
+- **Tuần 6, Ngày 6** (tiếp theo, đề xuất): viết staging cho các bảng còn lại (ít nhất `order_items`, `order_payments`, `order_reviews`, `customers`, `products`, `product_category_translation`; `geolocation` cần quyết cách gom một dòng một zip), thêm test (`accepted_values` cho `order_status` với 8 giá trị đã biết, `relationships` cho khóa nối). Dòng vàng `models.olist_dbt.marts` sẽ hết khi có thư mục `models/marts/`.
 ## 9. Lỗi đã gặp và cách sửa
 
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -453,6 +466,9 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **`AttributeError: module 'google.cloud.bigquery' has no attribute 'schemaField'`**: gõ chữ `s` thường, tên đúng là `SchemaField`. Lỗi nổ trước khi load job được gửi nên không tốn gì và bảng chưa được nạp. Khối `try/except` nuốt lỗi nên cell vẫn xanh; phải đọc output tìm chữ `LỖI`. Sửa Cell 2 rồi chạy lại Cell 2 trước, sau đó chạy lại Cell 3.
 - **`FileNotFoundError` bị `except` nuốt khi file nguồn thiếu**: bảng đó không được nạp, nhưng bảng cũ từ lần trước vẫn nằm trên BigQuery, không có dấu hiệu nào cho biết là bản cũ. Đọc dòng `Bảng có vấn đề: [...]` ở cuối Cell 3.
 
+- **Luật `.gitignore` không có dấu `/` ở đầu chặn nhầm thư mục cùng tên ở sâu bên trong**: `olist/` (dòng 226) chặn cả `olist_dbt/models/staging/olist/`; ba file `.sql`/`.yml` chính không hiện trong `git status` và không có lỗi nào báo. Kiểm bằng `git check-ignore -v <đường dẫn>` (in ra dòng luật đang chặn); sửa thành `/olist/` (chỉ chặn ở gốc repo) rồi kiểm lại.
+- **`git grep` trong Anaconda Prompt báo `'AIza' is not recognized`**: Anaconda Prompt là `cmd`, nháy đơn không hoạt động và `|` bị hiểu là pipe. Dùng nháy kép: `git grep --cached -n -i -E "@gmail|AIza|private_key|api_key"`. `--cached` chỉ quét file đã `git add`; sau khi đã commit thì dùng `git grep ... HEAD`.
+
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
 - Chỉ học một cloud warehouse (BigQuery) cho đến khi xong lộ trình.
@@ -507,6 +523,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 6, Ngày 2 (đề xuất, chốt ở Ngày 3): mô phỏng cập nhật tự động bằng cách chia theo `orders.order_purchase_timestamp` theo tháng (`items`, `payments`, `reviews` đi theo `order_id`); khi nối `products` với `translation` dùng `left join` (623 sản phẩm không có tên tiếng Anh); `geolocation` gom về một dòng một zip trước khi nối; luôn so số dòng trước và sau khi nối.
 - Tuần 6, Ngày 3: `olist_raw` nạp bằng load job, mọi cột STRING (khai báo schema rõ từ dòng tiêu đề), `skip_leading_rows=1`, `WRITE_TRUNCATE` (chạy lại không trùng), `allow_quoted_newlines=True`. Ép kiểu ở dbt staging bằng `SAFE_CAST`, mã zip giữ STRING. Mỗi bảng nạp xong phải so số dòng đích (`num_rows` hoặc `COUNT(*)`) với số dòng đếm từ file CSV. Sửa dòng cũ "Repo tạo ở Tuần 6, Ngày 1 (chưa tạo)" thành "đã tạo".
 - Tuần 6, Ngày 4: tên bảng raw của Project 2 bỏ `olist_` và `_dataset`. Mỗi lần nạp bảng, đối chiếu ít nhất 4 số dòng gồm một nguồn đứng ngoài BigQuery (đếm từ file CSV); `n_job` và `n_tbl` cùng phía BigQuery nên không thay được nguồn ngoài. Mã zip giữ nguyên STRING ở raw. Ô comment trống ở `order_reviews` là NULL, không phải chuỗi rỗng. Khi nối `products` với `translation` luôn dùng `left join` rồi xử lý 623 dòng NULL ở staging, và so số dòng trước và sau khi nối.
+- Tuần 6, Ngày 5: dbt của Project 2 nằm trong `olist_dbt/`, ghi vào dataset `olist_dbt_dev` (US), tách khỏi `dbt_dev`; mọi query dbt có `maximum_bytes_billed: 1000000000`. Staging đọc `olist_raw` bằng `source('olist', ...)`, chỉ đổi tên và ép kiểu bằng `SAFE_CAST` (không có quy tắc nghiệp vụ). Mỗi cột ép kiểu mới phải so NULL trước và sau ép trên bảng raw. Luật `.gitignore` của thư mục dữ liệu viết dạng `/olist/` (neo ở gốc repo). Thứ tự trước khi đẩy: `git add` từng file, `git status`, quét bí mật, rồi mới commit và push.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -561,6 +578,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Có zip nào bắt đầu bằng `'0'` trong raw không (mới suy ra từ độ dài 5)? Chưa đếm trực tiếp.
 - Bỏ `job.result()` thì `output_rows` có thật sự là `None` không? Chưa thử.
 - `customers`, `sellers`, `geolocation` có zip nào không khớp giữa ba bảng không? Chưa kiểm; làm ở staging.
+- order_status đã xác nhận có 8 giá trị (xem mục 7).
+- NULL ở `order_delivered_carrier_date` (1.783) và `order_delivered_customer_date` (2.965) có khớp với các trạng thái chưa giao (`canceled`, `unavailable`, `shipped`...) không? Chưa kiểm bằng SQL.
 
 
 ## 12. Cách mình muốn được trả lời
@@ -586,3 +605,5 @@ Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job
 - “Chưa chắc, vẫn hỏi lại” (Tuần 6 Ngày 3): `job.result()` chờ rồi mới đọc `output_rows`, không gán vào `job`; NULL khác mồ côi; `len(df)` khác số dòng của bảng; `WRITE_APPEND` chạy hai lần ra gấp đôi.
 
 - "Chưa chắc, vẫn hỏi lại" (Tuần 6 Ngày 4): `len(df)` là số dòng của kết quả SQL, không phải số dòng của bảng (`df["so_dong"][0]`); `n_tbl` là `num_rows` của bảng BigQuery, không phải của pandas; `n_job` và `n_tbl` cùng phía BigQuery nên cần nguồn ngoài; `join` thường làm mất sản phẩm, `left join` giữ lại với tên NULL (623 = 610 NULL + 13 mồ côi); `print(len(TABLES))` là số bảng dự định; `except` nuốt lỗi và để lại bảng cũ.
+
+- "Chưa chắc, vẫn hỏi lại" (Tuần 6 Ngày 5): `len(df)` là số dòng kết quả SQL, không phải số dòng bảng; ví dụ cho "test không bắt được" phải gắn với cột thật sự được test; `.gitignore` không có dấu `/` đầu khớp ở mọi cấp. Đã nắm: `check` là dry run, `stats` chạy thật; `processed` 9,86 MB nhưng `billed` 10,0 MB vì mức tối thiểu; hai số NULL bằng nhau nghĩa là `SAFE_CAST` không làm hỏng ô nào.
