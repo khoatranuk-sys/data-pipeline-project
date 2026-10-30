@@ -62,6 +62,8 @@
 
 - Project 2 (từ Tuần 6 Ngày 5): dbt nằm trong `olist_dbt/` (repo `olist-bi-project`, có commit), profile `olist_dbt` trong `%USERPROFILE%\.dbt\profiles.yml` (`method: oauth`, `project: bq-learning-510104`, `dataset: olist_dbt_dev`, `location: US`, `threads: 4`, `maximum_bytes_billed: 1000000000`; khối `bi_dbt` của Project 1 giữ nguyên). `dbt_project.yml`: `staging` là `view`, `marts` là `table`. Cấu trúc: `olist_dbt/models/staging/olist/` chứa `_olist__sources.yml` (source `olist` trỏ `olist_raw`, 9 bảng), `stg_olist__orders.sql` (view, `SAFE_CAST` 5 cột ngày) và `_olist__models.yml` (mô tả và 2 test `unique`, `not_null` trên `order_id`). Lệnh dùng (Anaconda Prompt, env `bi`, đang ở `olist_dbt`): `dbt compile --select stg_olist__orders`, `dbt run --select stg_olist__orders`, `dbt test --select stg_olist__orders`. Notebook: `Notebook/Week01/Day05.ipynb` (tên thật mình đặt; Cell 1 định nghĩa `client`, `mb`, `check`, `stats`; Cell 2 so NULL trước và sau `SAFE_CAST`; Cell 3 kiểm view; Cell 4 đếm `order_status`). Luật `.gitignore` `olist/` đã đổi thành `/olist/` vì chặn nhầm `olist_dbt/models/staging/olist/`.
 
+- Project 2 (từ Tuần 6 Ngày 6): thêm 7 file staging trong `olist_dbt/models/staging/olist/` (đều `view`, đọc `olist_raw` bằng `source('olist', ...)`): `stg_olist__customers`, `sellers`, `order_items`, `order_payments`, `order_reviews`, `products`, `product_category_translation`. Tên cột sau khi đổi: `customers` (`customer_id`, `customer_unique_id`, `zip_code_prefix`, `city`, `state`); `sellers` (`seller_id`, `zip_code_prefix`, `city`, `state`); `order_items` (`order_id`, `order_item_id` INT64, `product_id`, `seller_id`, `shipping_limit_at` TIMESTAMP, `price` và `freight_value` NUMERIC); `order_payments` (`order_id`, `payment_sequential` INT64, `payment_type`, `payment_installments` INT64, `payment_value` NUMERIC); `order_reviews` (`review_id`, `order_id`, `review_score` INT64, `comment_title`, `comment_message`, `created_at`, `answered_at` TIMESTAMP); `products` (`product_id`, `category_name`, `name_length`, `description_length`, `photos_qty`, `weight_g`, `length_cm`, `height_cm`, `width_cm`, cả 7 cột số INT64, đã sửa chính tả `lenght` thành `length`); `product_category_translation` (`category_name`, `category_name_english`). Test nằm trong `_olist__models.yml` (17 test generic) và thư mục `olist_dbt/tests/` (3 file test riêng cho khóa ghép: `assert_order_items_grain.sql`, `assert_order_payments_grain.sql`, `assert_order_reviews_grain.sql`). Lệnh dùng (Anaconda Prompt, env `bi`, trong `olist_dbt`): `dbt test` (không cần `--select` vì `models/example/` đã xóa). Notebook: `Notebook/Week01/Day06.ipynb` (tên thật mình đặt).
+
 ## 5. Chi phí và an toàn
 
 - Budget alert chỉ gửi thông báo, không chặn chi tiêu; quota `Query usage per day` của project mới là cầu chì cứng (vượt thì query lỗi `usageQuotaExceeded`). 
@@ -87,7 +89,7 @@
 - **Tuần 6, Ngày 1**: tạo repo `olist-bi-project`.
   - **Repo**: tạo trên GitHub (Public, README, `.gitignore` Python, không chọn License), clone về `D:\BI\projects\olist-bi-project`. Thêm khối luật vào `.gitignore` trước khi có file dữ liệu. `git check-ignore -v` xác nhận bị chặn: `.env` (dòng 224), `data/` (dòng 225), `*.pbix` (dòng 229).
   - **README khởi đầu** (tiếng Anh): mục tiêu, nguồn dữ liệu (Brazilian E-Commerce Public Dataset by Olist), giấy phép CC BY-NC-SA 4.0, ghi rõ dữ liệu không nằm trong repo và dự án chỉ để học và portfolio, không dùng cho khách trả tiền (tiêu chí 8).
-  - **Notebook** `Notebook/Week01/Day1.ipynb`: đọc `OLIST_DIR` từ `.env` bằng `python-dotenv`, liệt kê file `.csv`, đọc tiêu đề bằng `pd.read_csv(f, nrows=0)`. [ĐIỀN: số file và tên cột thật từ output Cell 2]
+  - **Notebook** `Notebook/Week01/Day1.ipynb`: đọc `OLIST_DIR` từ `.env` bằng `python-dotenv`, liệt kê file `.csv`, đọc tiêu đề bằng `pd.read_csv(f, nrows=0)`. 
   - **Commit**: 3 commit trên GitHub (1 của GitHub, 2 của mình): `Add project skeleton: README, .gitignore rules, .env.example` và `Add Day 1 notebook: list Olist files and columns`. Không có `.env` trên GitHub.
   - **Chi phí**: không đụng BigQuery nên không tốn byte.
   - **Checklist Excel**: tick việc tạo repo Project 2 của Tuần 6 (kiểm tra lại tên dòng và số tổng hiển thị).
@@ -95,6 +97,8 @@
   - Tuần 6 Ngày 4: 8 load job không tốn byte truy vấn. Cell 5 (một bảng) processed 2,81 MB, billed 10 MB; Cell 5b (ba bảng) processed 7,36 MB, billed 30 MB: thêm một lần đo ủng hộ giả thuyết "mức tối thiểu 10 MB tính theo từng bảng" (chưa có tài liệu xác nhận). Tổng khoảng 40 MB billed.
 
   - Tuần 6 Ngày 5: `dbt run` view không quét byte; Cell 2, 3, 4 mỗi cell đọc một bảng, processed 9,86 / 5,22 / 1,04 MB, billed 10 MB mỗi cell (tổng khoảng 30 MB); `dbt test` 2 test chạy 8,25 giây, chi phí chưa đo.
+
+  - Tuần 6 Ngày 6: Cell 2a-2d (4 bảng, mỗi cell một bảng) mỗi cell billed 10 MB (processed 4,11 / 1,34 / 4,26 / 0,92 MB), tổng 40 MB. Cell 5 (`COUNT(*)` trên 8 view) processed 0,0 MB, billed 0,0 MB mỗi query: mình đoán BigQuery trả lời `COUNT(*)` không lọc từ thông tin có sẵn của bảng (chưa kiểm chứng). Cell 6 (một bảng) processed 4,93 MB, billed 10 MB. Cell 7 và 8 (`geolocation`, một bảng 58 MB) mỗi cell processed 42,06 MB, billed 43 MB. `dbt run` view không quét byte; `dbt test` 20 test chạy 22,57 giây, chi phí thật chưa đo. Tổng billed của notebook khoảng 136 MB.
 
 ## 6. Lộ trình 8 tuần (tóm tắt)
 | Tuần | Nội dung chính |
@@ -367,6 +371,16 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
   - **Lỗi gặp**: luật `olist/` trong `.gitignore` (dòng 226) chặn `olist_dbt/models/staging/olist/` nên ba file chính không hiện trong `git status` (xem mục 9).
   - **Ôn cuối ngày**: 4 câu (2 Python, 2 nội dung), đều đúng ý chính. Cần ôn: `len(df)` là số dòng kết quả SQL; ví dụ cho "test không bắt được" phải gắn với cột đã được test.
   - **Checklist Excel**: mình chưa đọc được file nên bạn tự tick việc dbt cho Project 2 (nếu có) và đối chiếu số hiển thị.
+  
+  - **Tuần 6, Ngày 6**: staging cho 7 bảng còn lại, 20 test, đối chiếu số dòng, khám phá `geolocation`. Notebook `Notebook/Week01/Day06.ipynb`.
+  - **Quyết định**: khóa ghép (`order_items`, `order_payments`, `order_reviews`) kiểm bằng test riêng trong `tests/` (không cài `dbt_utils`); đổi tên cột `lenght` thành `length` ở staging; staging chỉ đổi tên và ép kiểu, tiền dùng NUMERIC, số đếm INT64, ngày giờ TIMESTAMP, mã zip giữ STRING.
+  - **Đo NULL trước và sau `SAFE_CAST`** (Cell 2a-2d, mỗi bảng một cell): cả `order_items` (112.650 dòng, 4 cột), `order_payments` (103.886, 3 cột), `order_reviews` (99.224, 3 cột) đều có `_raw` bằng `_cast` (đều 0). `products` (32.951 dòng): 610 NULL ở `name_length`, `description_length`, `photos_qty`; 2 NULL ở `weight_g`, `length_cm`, `height_cm`, `width_cm`; mọi cặp `_raw` bằng `_cast`, nên ép kiểu không làm hỏng ô nào và không cần `FLOAT64`.
+  - **Kết quả**: `dbt test` `PASS=20 WARN=0 ERROR=0 TOTAL=20` (17 generic + 3 test riêng, 22,57 giây). Cell 5: cả 8 view khớp số dòng CSV (customers 99.441, sellers 3.095, orders 99.441, order_items 112.650, order_payments 103.886, order_reviews 99.224, products 32.951, translation 71).
+  - **Trả lời câu hỏi mở về NULL ngày giao** (Cell 6, tổng 1.783 và 2.965): `delivered` 96.478 đơn có 2 NULL ngày giao hãng và 8 NULL ngày giao khách; `shipped` 1.107 đơn, NULL ngày giao khách 1.107 (ngày giao hãng 0); `canceled` 625 đơn, 550 và 619; `unavailable` 609, `invoiced` 314, `processing` 301, `created` 5, `approved` 2 đều NULL ở cả hai cột bằng số đơn. Phần lớn khớp trạng thái chưa giao; ngoại lệ chưa giải thích: 8 đơn `delivered` thiếu ngày giao khách, và `canceled` có đơn có ngày giao.
+  - **`geolocation`** (Cell 7, 8; chỉ khám phá): 19.015 zip khác nhau; 8.556 zip có nhiều hơn một tên thành phố; 8 zip có nhiều bang; 2.001 zip có vĩ độ lệch trên 0,1 độ; zip nhiều dòng nhất 1.146 dòng; zip `24230` lệch vĩ độ 1,70 độ. Chưa xem tên thật và chưa chọn cách gom.
+  - **Git**: 3 commit (staging, test, notebook), push `b10e6c1..be1e363`, `git grep --cached` không in dòng nào. Lần này đã quét trước khi commit.
+  - **Ôn cuối ngày**: làm 2 trong 6 câu, còn 4 câu dời sang Ngày 7. Câu 1 (vòng `for` với `EXPECTED.items()`): đúng ý chính (đối chiếu từng view, chạy 8 lần), sai ở chỗ `EXPECTED` rỗng; thật ra vòng chạy 0 lần, không báo lỗi. Câu 2 (`PASS=20`): `unique`, `not_null`, `accepted_values` đúng; `relationships` tìm giá trị có ở `orders.customer_id` mà không có ở `customers.customer_id`; ví dụ `customer_id = 'delivered'` trong `orders` thì `relationships` FAIL, chỉ đúng ở `customers.customer_id` (chỉ có `unique` và `not_null`). Chưa nêu được ví dụ lỗi mà test không bắt.
+  - **Checklist Excel**: tick "Kiểm tra bộ dữ liệu đã chốt" và "Nạp bộ dữ liệu đã chốt vào BigQuery (bảng raw)" của Tuần 6 nếu chưa tick. Tuần 5 còn 5 dòng chưa tick (3 dòng Project 1, 2 dòng chốt ngách và dữ liệu): mình thấy trong file nhưng CONTEXT ghi đã xong, bạn đối chiếu rồi tick.
 
 ## 8. Đang làm
 
@@ -375,7 +389,10 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Tuần 6, Ngày 3**: xong (`olist_raw`, bảng `product_category_translation` 71 dòng).
 - **Tuần 6, Ngày 4**: xong (8 bảng trong `olist_raw`, số dòng khớp).
 - **Tuần 6, Ngày 5**: xong (`olist_dbt/`, `stg_olist__orders`, `PASS=2`).
-- **Tuần 6, Ngày 6** (tiếp theo, đề xuất): viết staging cho các bảng còn lại (ít nhất `order_items`, `order_payments`, `order_reviews`, `customers`, `products`, `product_category_translation`; `geolocation` cần quyết cách gom một dòng một zip), thêm test (`accepted_values` cho `order_status` với 8 giá trị đã biết, `relationships` cho khóa nối). Dòng vàng `models.olist_dbt.marts` sẽ hết khi có thư mục `models/marts/`.
+- **Tuần 6, Ngày 6**: xong (7 staging, 20 test PASS, `geolocation` mới khám phá).
+- **Tuần 6, Ngày 7** (tiếp theo, đề xuất): hoàn tất ôn Ngày 6 (4 câu); cell xem tên thật các zip nhiều thành phố và 8 zip nhiều bang rồi chốt cách gom `geolocation` thành một dòng một zip (và viết `stg_olist__geolocation`); bắt đầu `models/marts/` (khi có thư mục này, dòng vàng `models.olist_dbt.marts` hết). Ý tưởng mart: `dim_products` (`left join` translation, xử lý 623 sản phẩm tên tiếng Anh NULL), `dim_customers`, `dim_sellers`, `fct_order_items`; luôn so số dòng trước và sau khi nối.
+
+
 ## 9. Lỗi đã gặp và cách sửa
 
 - **403 Forbidden khi chạy query từ Python**: đăng nhập nhầm tài khoản Google. Sửa: `gcloud auth application-default revoke`, đăng nhập lại đúng tài khoản, rồi `gcloud auth application-default set-quota-project bq-learning-510104`.
@@ -469,6 +486,8 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - **Luật `.gitignore` không có dấu `/` ở đầu chặn nhầm thư mục cùng tên ở sâu bên trong**: `olist/` (dòng 226) chặn cả `olist_dbt/models/staging/olist/`; ba file `.sql`/`.yml` chính không hiện trong `git status` và không có lỗi nào báo. Kiểm bằng `git check-ignore -v <đường dẫn>` (in ra dòng luật đang chặn); sửa thành `/olist/` (chỉ chặn ở gốc repo) rồi kiểm lại.
 - **`git grep` trong Anaconda Prompt báo `'AIza' is not recognized`**: Anaconda Prompt là `cmd`, nháy đơn không hoạt động và `|` bị hiểu là pipe. Dùng nháy kép: `git grep --cached -n -i -E "@gmail|AIza|private_key|api_key"`. `--cached` chỉ quét file đã `git add`; sau khi đã commit thì dùng `git grep ... HEAD`.
 
+- **`KeyError: 'so_dong'` khi chạy lại một cell dùng `df`**: `df` là biến chung của cả notebook, mọi cell gán `df = stats(sql)` đều ghi đè nó. Cell chạy sau (Cell 7, 8) làm `df` mang cột khác nên cột cũ không còn. Số thứ tự `In[...]` cho biết cell nào chạy gần nhất. Cách xem nhanh: `print(df.columns)`. Cell dùng `df` nên tự tạo `df` của mình ngay trong cell (như Cell 5b) thay vì dựa vào cell trước. Dòng traceback dài của pandas chỉ là vết bên trong, đọc dòng cuối `KeyError: '<tên cột>'` là đủ.
+
 ## 10. Quyết định đã chốt
 - Dùng VS Code thay vì Jupyter riêng (sẽ cần viết nhiều file `.sql`/`.yml` cho dbt).
 - Chỉ học một cloud warehouse (BigQuery) cho đến khi xong lộ trình.
@@ -524,6 +543,7 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - Tuần 6, Ngày 3: `olist_raw` nạp bằng load job, mọi cột STRING (khai báo schema rõ từ dòng tiêu đề), `skip_leading_rows=1`, `WRITE_TRUNCATE` (chạy lại không trùng), `allow_quoted_newlines=True`. Ép kiểu ở dbt staging bằng `SAFE_CAST`, mã zip giữ STRING. Mỗi bảng nạp xong phải so số dòng đích (`num_rows` hoặc `COUNT(*)`) với số dòng đếm từ file CSV. Sửa dòng cũ "Repo tạo ở Tuần 6, Ngày 1 (chưa tạo)" thành "đã tạo".
 - Tuần 6, Ngày 4: tên bảng raw của Project 2 bỏ `olist_` và `_dataset`. Mỗi lần nạp bảng, đối chiếu ít nhất 4 số dòng gồm một nguồn đứng ngoài BigQuery (đếm từ file CSV); `n_job` và `n_tbl` cùng phía BigQuery nên không thay được nguồn ngoài. Mã zip giữ nguyên STRING ở raw. Ô comment trống ở `order_reviews` là NULL, không phải chuỗi rỗng. Khi nối `products` với `translation` luôn dùng `left join` rồi xử lý 623 dòng NULL ở staging, và so số dòng trước và sau khi nối.
 - Tuần 6, Ngày 5: dbt của Project 2 nằm trong `olist_dbt/`, ghi vào dataset `olist_dbt_dev` (US), tách khỏi `dbt_dev`; mọi query dbt có `maximum_bytes_billed: 1000000000`. Staging đọc `olist_raw` bằng `source('olist', ...)`, chỉ đổi tên và ép kiểu bằng `SAFE_CAST` (không có quy tắc nghiệp vụ). Mỗi cột ép kiểu mới phải so NULL trước và sau ép trên bảng raw. Luật `.gitignore` của thư mục dữ liệu viết dạng `/olist/` (neo ở gốc repo). Thứ tự trước khi đẩy: `git add` từng file, `git status`, quét bí mật, rồi mới commit và push.
+- Tuần 6, Ngày 6: staging của Project 2 chỉ đổi tên và ép kiểu; kiểu đích: tiền NUMERIC, số đếm INT64, ngày giờ TIMESTAMP, mã zip STRING. Mỗi cột ép kiểu phải so NULL trước và sau `SAFE_CAST` (mỗi bảng một cell, SQL viết tay, thấy rõ từng câu). Khóa ghép kiểm bằng test riêng trong `olist_dbt/tests/` (không cài `dbt_utils`); `order_reviews` không đặt `unique` trên `review_id` vì trùng 814 dòng (đã biết từ Ngày 2). Sửa chính tả `lenght` thành `length` ở staging. Sau `dbt test` PASS vẫn phải đối chiếu số dòng với file CSV (test không chạm). Chỉ số "giao đúng hạn" (Tuần 7) chỉ tính đơn `delivered` có `delivered_to_customer_at` khác NULL; 8 đơn `delivered` thiếu ngày giao khách loại ra hoặc đánh dấu riêng (đề xuất, chốt ở Tuần 7). `geolocation` chưa gom: chốt ở Ngày 7 sau khi xem tên thật.
 
 ## 11. Câu hỏi còn mở
 - Công cụ BI nào xuất hiện nhiều nhất trong 10-20 tin tuyển dụng quanh mình (Power BI, Tableau hay Looker Studio)?
@@ -573,14 +593,16 @@ Tuần 1 chi tiết: Ngày 1 thiết lập, Ngày 2 mô hình dữ liệu, Ngày
 - review_id trùng 814 dòng (cặp review_id + order_id thì duy nhất): vì sao lặp?
 - customer_unique_id có lặp qua nhiều customer_id không?
 - 13 sản phẩm mồ côi thuộc mấy category, và có tên nào cần đoán nghĩa không?
-- geolocation: gom về một dòng một zip bằng cách nào (trung bình, lấy dòng đầu)? Quyết ở staging.
 - Ô trống ở các cột khác của `order_reviews` (và các bảng khác) cũng thành NULL hay chuỗi rỗng? Mới kiểm `review_comment_message`.
 - Có zip nào bắt đầu bằng `'0'` trong raw không (mới suy ra từ độ dài 5)? Chưa đếm trực tiếp.
 - Bỏ `job.result()` thì `output_rows` có thật sự là `None` không? Chưa thử.
 - `customers`, `sellers`, `geolocation` có zip nào không khớp giữa ba bảng không? Chưa kiểm; làm ở staging.
 - order_status đã xác nhận có 8 giá trị (xem mục 7).
-- NULL ở `order_delivered_carrier_date` (1.783) và `order_delivered_customer_date` (2.965) có khớp với các trạng thái chưa giao (`canceled`, `unavailable`, `shipped`...) không? Chưa kiểm bằng SQL.
-
+- 8 đơn `delivered` có `order_delivered_customer_date` NULL (2 đơn trong đó còn thiếu cả ngày giao hãng), và `canceled` có 6 đơn có ngày giao khách, 75 đơn có ngày giao hãng: vì sao? Chưa xem từng đơn.
+- 610 NULL ở `name_length`, `description_length`, `photos_qty` có trùng đúng nhóm 610 sản phẩm không có `category_name` không? 2 sản phẩm thiếu cân nặng và kích thước là sản phẩm nào? Chưa kiểm.
+- `COUNT(*)` không lọc trên view và bảng billed 0 MB (Cell 5 Ngày 6): có phải BigQuery lấy từ thông tin có sẵn của bảng? Chưa kiểm chứng.
+- geolocation: 8.556 zip nhiều tên thành phố có phải chỉ là cách viết khác nhau (không dấu, viết hoa) không; 8 zip nhiều bang là gì; zip `24230` lệch vĩ độ 1,70 độ do đâu? Quyết cách gom ở Ngày 7 (trung bình tọa độ, chọn tên thành phố nào).
+- Chi phí thật của `dbt test` 20 test (chưa đo bằng `INFORMATION_SCHEMA.JOBS`).
 
 ## 12. Cách mình muốn được trả lời
 - Tiếng Việt, từng bước rõ ràng, lệnh gõ nguyên văn (mình dùng Windows).
@@ -607,3 +629,5 @@ Danh sách đã nắm chắc (mình quyết định): `client.query()` gửi job
 - "Chưa chắc, vẫn hỏi lại" (Tuần 6 Ngày 4): `len(df)` là số dòng của kết quả SQL, không phải số dòng của bảng (`df["so_dong"][0]`); `n_tbl` là `num_rows` của bảng BigQuery, không phải của pandas; `n_job` và `n_tbl` cùng phía BigQuery nên cần nguồn ngoài; `join` thường làm mất sản phẩm, `left join` giữ lại với tên NULL (623 = 610 NULL + 13 mồ côi); `print(len(TABLES))` là số bảng dự định; `except` nuốt lỗi và để lại bảng cũ.
 
 - "Chưa chắc, vẫn hỏi lại" (Tuần 6 Ngày 5): `len(df)` là số dòng kết quả SQL, không phải số dòng bảng; ví dụ cho "test không bắt được" phải gắn với cột thật sự được test; `.gitignore` không có dấu `/` đầu khớp ở mọi cấp. Đã nắm: `check` là dry run, `stats` chạy thật; `processed` 9,86 MB nhưng `billed` 10,0 MB vì mức tối thiểu; hai số NULL bằng nhau nghĩa là `SAFE_CAST` không làm hỏng ô nào.
+
+- "Chưa chắc, vẫn hỏi lại" (Tuần 6 Ngày 6): vòng `for` với `EXPECTED` rỗng chạy 0 lần, không báo lỗi; `df["so_dong"].iloc[0]` (cột, rồi phần tử đầu, rồi `int`); `df` là biến chung bị cell sau ghi đè (`KeyError`); `relationships` tìm khóa mồ côi ở bảng được test (`orders.customer_id` không có trong `customers`); ví dụ lỗi mà test không bắt (đổi sai trạng thái đơn, mất dòng, ô ngày hỏng ở cột không có test); `len(df)` là số dòng kết quả SQL (Cell 6 ra 8 chứ không phải 99.441). Đã nắm: `check` là dry run, `stats` chạy thật; hai số NULL bằng nhau nghĩa là `SAFE_CAST` không làm hỏng ô nào.

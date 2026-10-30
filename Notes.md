@@ -1188,3 +1188,49 @@ Type 2 giữ lại từng lần thay đổi của khách kèm khoảng thời gi
 - Chi phí thật của `dbt test` (chưa đo bằng `INFORMATION_SCHEMA.JOBS`).
 
 **Cần ôn lại đầu ngày sau:** (1) `len(df)` là số dòng kết quả SQL, không phải số dòng bảng; (2) `SAFE_CAST` đổi ô hỏng thành NULL, nên so NULL trước và sau; (3) test `unique` và `not_null` chỉ kiểm cột được khai báo, không đối chiếu nguồn; (4) `.gitignore` không có dấu `/` đầu thì khớp ở mọi cấp; (5) thứ tự add, quét bí mật, commit, push.
+
+## Tuần 6 - Ngày 6: staging 7 bảng Olist còn lại và test
+
+**Ý chính (4 ý cần nhớ)**
+- Staging chỉ đổi tên và ép kiểu; không có quy tắc nghiệp vụ. Mỗi cột ép kiểu phải so NULL trước và sau `SAFE_CAST`; hôm nay cả 17 cột số và ngày của 4 bảng đều có hai số bằng nhau, nên ép kiểu không làm hỏng ô nào.
+- `dbt test` PASS=20 (17 test generic và 3 test riêng cho khóa ghép) chỉ chứng minh khóa không trùng, không NULL, trạng thái nằm trong danh sách, khóa nối không mồ côi. Nó không đối chiếu số dòng với file CSV, không kiểm đúng sai nội dung. Vì vậy Cell 5 so số dòng từng view với số đếm từ file CSV.
+- Khóa ghép (`order_items`: `order_id` + `order_item_id`; `payments`: `order_id` + `payment_sequential`; `reviews`: `review_id` + `order_id`) không có cột khóa đơn nên dùng test riêng trong `tests/`: câu SQL trả về các dòng trùng, 0 dòng là PASS. `review_id` đơn lẻ trùng 814 dòng nên không đặt `unique`.
+- Phần lớn NULL ở hai cột ngày giao khớp trạng thái chưa giao (các trạng thái `unavailable`, `invoiced`, `processing`, `created`, `approved` NULL toàn bộ; `shipped` NULL hết ngày giao khách), nhưng có ngoại lệ chưa giải thích. `geolocation` một mã zip nhiều dòng, nhiều tên thành phố, có zip lệch tọa độ rộng nên chưa gom, chốt ở Ngày 7.
+
+**Đã làm** (`Notebook/Week01/Day06.ipynb`, `olist_dbt/`)
+- 7 file staging mới (xem tên cột ở mục 4 của CONTEXT); đổi tên `lenght` thành `length` ở `products`; tiền NUMERIC, số đếm INT64, ngày giờ TIMESTAMP, zip STRING.
+- Test: mỗi bảng `unique` và `not_null` trên khóa (customers, sellers, products, translation), `accepted_values` cho `order_status` (8 giá trị), `relationships` (orders sang customers; order_items sang orders, products, sellers; payments và reviews sang orders), cộng 3 test riêng. `dbt test` `PASS=20 TOTAL=20`, 22,57 giây.
+- Cell 5: 8 view khớp số dòng CSV; processed 0,0 MB, billed 0,0 MB mỗi query `COUNT(*)`.
+
+| Trạng thái | Số đơn | NULL ngày giao hãng | NULL ngày giao khách |
+|---|---|---|---|
+| `delivered` | 96.478 | 2 | 8 |
+| `shipped` | 1.107 | 0 | 1.107 |
+| `canceled` | 625 | 550 | 619 |
+| `unavailable` | 609 | 609 | 609 |
+| `invoiced` | 314 | 314 | 314 |
+| `processing` | 301 | 301 | 301 |
+| `created` | 5 | 5 | 5 |
+| `approved` | 2 | 2 | 2 |
+
+- `geolocation` (khám phá, chưa viết model): 19.015 zip; 8.556 zip nhiều tên thành phố; 8 zip nhiều bang; 2.001 zip vĩ độ lệch trên 0,1 độ; zip `24230` lệch 1,70 độ; zip nhiều dòng nhất 1.146 dòng.
+- Chi phí: xem mục 5 của CONTEXT.
+
+**Chỗ dễ nhầm**
+- `df["so_dong"].iloc[0]`: lấy cột `so_dong` (một dãy), lấy phần tử ở vị trí đầu (`iloc[0]`, đếm từ 0), đổi thành số nguyên (`int`). `df` ở đây có 1 dòng vì câu SQL là `COUNT(*)`.
+- `df` là biến chung của cả notebook: cell chạy sau ghi đè. `KeyError: 'so_dong'` nghĩa là `df` đang là kết quả của cell khác. In `df.columns` để xem, và để cell tự tạo `df` của mình.
+- Ví dụ `customer_id = 'delivered'` trong `orders` làm `relationships` FAIL; chỉ ở `customers.customer_id` (chỉ có `unique` và `not_null`) thì giá trị lạ đó vẫn PASS.
+- `canceled` chỉ có một chữ `l` trong dữ liệu; gõ `cancelled` làm `accepted_values` FAIL.
+
+**Ôn cuối ngày** (mới làm 2 trong 6 câu)
+- Câu 1: `for view, n_csv in EXPECTED.items()` gán từng cặp (tên view, số dòng CSV), chạy 8 lần; `EXPECTED` rỗng thì chạy 0 lần, không báo lỗi (mình trả lời nhầm là báo lỗi).
+- Câu 2: `PASS=20` chứng minh khóa, giá trị, khóa nối; chưa nêu được ví dụ lỗi mà test không bắt. Ví dụ đúng: đơn bị ghi sai thành `canceled` (vẫn nằm trong danh sách), mất 1.000 dòng của `order_items` (`unique` và `relationships` vẫn PASS), ô ngày hỏng thành NULL ở cột không có test.
+- Còn 4 câu (3 Python gồm câu về `len(df)` ở Cell 6 và dòng `print` tính tổng cột, 1 nội dung) dời sang Ngày 7.
+
+**Điều mình chưa chắc**
+- Vì sao 8 đơn `delivered` thiếu ngày giao khách và `canceled` có đơn có ngày giao.
+- 610 NULL ở ba cột của `products` có trùng nhóm 610 sản phẩm không có category không.
+- Vì sao `COUNT(*)` billed 0 MB.
+- Chi phí thật của `dbt test` (chưa đo).
+
+**Cần ôn lại đầu ngày sau:** (1) vòng `for` với dictionary rỗng chạy 0 lần, không báo lỗi; (2) `df["so_dong"].iloc[0]` là cột, rồi phần tử đầu, rồi `int`; (3) `df` bị cell sau ghi đè, `print(df.columns)` khi gặp `KeyError`; (4) `relationships` chạy ở bảng được test, tìm khóa mồ côi; (5) ví dụ lỗi test không bắt; (6) `len(df)` là số dòng kết quả SQL.
